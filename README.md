@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mealmoti - Listas de Compra Compartidas
 
-## Getting Started
+Aplicación web para crear y compartir listas de la compra con familia y amigos.
 
-First, run the development server:
+## 🚀 Inicio Rápido
 
+### Prerrequisitos
+
+- Node.js 18+ 
+- PostgreSQL
+
+### Instalación
+
+1. Clonar el repositorio
+2. Instalar dependencias:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Configurar variables de entorno:
+```bash
+# Crear archivo .env con:
+DATABASE_URL="postgresql://usuario:password@localhost:5432/mealmoti?schema=public"
+NODE_ENV="development"
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. Configurar base de datos:
+```bash
+# Opción 1: Usar db:push (desarrollo rápido)
+npm run dev:setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Opción 2: Usar migraciones (recomendado para producción)
+npm run db:migrate
+npm run db:seed
+```
 
-## Learn More
+5. Iniciar servidor de desarrollo:
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+La aplicación estará disponible en `http://localhost:3000`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 👤 Usuario de Prueba (Desarrollo)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+En modo desarrollo, puedes usar estas credenciales:
 
-## Deploy on Vercel
+- **Email:** `test@mealmoti.com`
+- **Contraseña:** `password123`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Este usuario se crea automáticamente al ejecutar `npm run db:seed` o `npm run dev:setup`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📜 Scripts Disponibles
+
+- `npm run dev` - Inicia servidor de desarrollo
+- `npm run build` - Construye la aplicación para producción
+- `npm run start` - Inicia servidor de producción
+- `npm run lint` - Ejecuta el linter
+
+### Scripts de Base de Datos
+
+- `npm run db:generate` - Genera Prisma Client
+- `npm run db:push` - Sincroniza schema sin migraciones (desarrollo)
+- `npm run db:migrate` - Crea y aplica migraciones
+- `npm run db:studio` - Abre Prisma Studio (interfaz visual de BD)
+- `npm run db:seed` - Ejecuta el seed (crea usuario de prueba)
+- `npm run dev:setup` - Configuración rápida: push + seed
+
+## 🏗️ Estructura del Proyecto
+
+```
+mealmoti/
+├── app/
+│   ├── api/          # API Routes
+│   ├── app/          # Páginas privadas
+│   ├── login/        # Página de login
+│   ├── register/     # Página de registro
+│   └── page.tsx       # Landing page
+├── components/       # Componentes React
+├── lib/              # Utilidades y helpers
+├── prisma/           # Schema y migraciones
+└── middleware.ts      # Middleware de Next.js
+```
+
+## 🔐 Autenticación
+
+La aplicación usa cookies httpOnly para manejar sesiones. Las contraseñas se hashean con bcryptjs.
+
+## 📝 Funcionalidades
+
+- ✅ Registro y autenticación de usuarios
+- ✅ Crear listas de compra
+- ✅ Agregar, editar y eliminar items
+- ✅ Marcar items como completados
+- ✅ Compartir listas con otros usuarios
+- ✅ Control de permisos (solo lectura / edición)
+
+## 🛠️ Stack Tecnológico
+
+- **Framework:** Next.js 16+ (App Router)
+- **Base de Datos:** PostgreSQL
+- **ORM:** Prisma
+- **Autenticación:** Cookies con sesiones
+- **Estilos:** Tailwind CSS
+- **Validación:** Zod
+- **Hash de contraseñas:** bcryptjs
+
+## 📚 Documentación
+
+Para más detalles sobre la implementación, consulta `mealmoti.md`.
