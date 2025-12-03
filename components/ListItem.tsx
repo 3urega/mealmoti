@@ -70,7 +70,7 @@ export default function ListItem({
             type="text"
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
             placeholder="Nombre del item"
           />
           <div className="flex gap-2">
@@ -78,21 +78,21 @@ export default function ListItem({
               type="text"
               value={editQuantity}
               onChange={(e) => setEditQuantity(e.target.value)}
-              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               placeholder="Cantidad"
             />
             <input
               type="text"
               value={editUnit}
               onChange={(e) => setEditUnit(e.target.value)}
-              className="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              className="w-24 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               placeholder="Unidad"
             />
           </div>
           <textarea
             value={editNotes}
             onChange={(e) => setEditNotes(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
             placeholder="Notas (opcional)"
             rows={2}
           />

@@ -2,7 +2,28 @@
 
 Este documento describe el plan de desarrollo para implementar los requisitos funcionales del sistema Mealmoti, basado en la arquitectura definida y el dominio del negocio.
 
-## 📋 Requisitos a Implementar
+## 📊 Estado Actual del Proyecto
+
+### ✅ Completado
+- **Fase 1: Gestión de Ingredientes** - COMPLETA
+  - ✅ Backend: Todas las APIs implementadas (GET, POST, PUT, DELETE)
+  - ✅ Frontend: Página completa con lista, búsqueda, filtros, modales de crear/editar/eliminar
+  - ✅ Validaciones Zod implementadas
+  - ✅ Integración completa frontend-backend
+
+- **Fase 2: Gestión de Productos** - COMPLETA
+  - ✅ Backend: Todas las APIs implementadas (GET, POST, PUT, DELETE)
+  - ✅ Backend: APIs de ingredientes de productos (GET, POST, PUT, DELETE)
+  - ✅ Frontend: Página completa con lista, búsqueda, filtros, modales de crear/editar/eliminar
+  - ✅ Validaciones Zod implementadas
+  - ✅ Permisos y validaciones de integridad
+  - ✅ Integración completa frontend-backend
+
+### 🎯 Siguiente Paso
+- **Fase 3: Gestión de Artículos (Marcas)**
+  - Pendiente: Implementar todas las APIs y crear frontend
+
+### 📋 Requisitos a Implementar
 
 1. Añadir ingrediente
 2. Crear producto
@@ -241,6 +262,39 @@ Permitir la creación y gestión de productos genéricos.
 **Validaciones:**
 - No se puede eliminar si tiene artículos asociados (onDelete: Restrict)
 - Solo el creador puede eliminar productos particulares
+
+#### 2.6 API: Gestión de Ingredientes de Productos
+
+**Endpoints:**
+- `GET /api/products/[id]/ingredients` - Listar ingredientes del producto
+- `POST /api/products/[id]/ingredients` - Asignar ingredientes al producto
+- `PUT /api/products/[id]/ingredients/[ingredientId]` - Actualizar relación (isOptional)
+- `DELETE /api/products/[id]/ingredients/[ingredientId]` - Eliminar ingrediente del producto
+
+**Funcionalidad:**
+- Permite asociar ingredientes a productos genéricos
+- Cada relación puede marcar el ingrediente como opcional o no
+- Solo el creador puede modificar ingredientes de productos particulares
+
+**Request Body (POST):**
+```json
+{
+  "ingredientIds": ["...", "..."],
+  "isOptional": false
+}
+```
+
+**Request Body (PUT):**
+```json
+{
+  "isOptional": true
+}
+```
+
+**Validaciones:**
+- Todos los IDs de ingredientes deben existir
+- Solo el creador puede modificar productos particulares
+- La relación es única (productId + ingredientId)
 
 ---
 
@@ -853,12 +907,16 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 - `PUT /api/ingredients/[id]` - Actualizar ingrediente
 - `DELETE /api/ingredients/[id]` - Eliminar ingrediente
 
-### Fase 2: Productos
+### Fase 2: Productos ✅ COMPLETA
 - `POST /api/products` - Crear producto
-- `GET /api/products` - Listar productos
-- `GET /api/products/[id]` - Obtener producto
+- `GET /api/products` - Listar productos (con búsqueda, filtros, paginación)
+- `GET /api/products/[id]` - Obtener producto (con artículos e ingredientes)
 - `PUT /api/products/[id]` - Actualizar producto
 - `DELETE /api/products/[id]` - Eliminar producto
+- `GET /api/products/[id]/ingredients` - Listar ingredientes del producto
+- `POST /api/products/[id]/ingredients` - Asignar ingredientes al producto
+- `PUT /api/products/[id]/ingredients/[ingredientId]` - Actualizar relación ingrediente-producto
+- `DELETE /api/products/[id]/ingredients/[ingredientId]` - Eliminar ingrediente del producto
 
 ### Fase 3: Artículos (Marcas)
 - `POST /api/articles` - Crear artículo
@@ -954,8 +1012,8 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 ## 📅 Orden de Implementación Recomendado
 
 ### Sprint 1: Fundamentos
-1. Fase 1: Gestión de Ingredientes
-2. Fase 2: Gestión de Productos
+1. ✅ Fase 1: Gestión de Ingredientes - **COMPLETA**
+2. ✅ Fase 2: Gestión de Productos - **COMPLETA** (incluye gestión de ingredientes de productos)
 
 ### Sprint 2: Artículos y Relaciones
 3. Fase 3: Gestión de Artículos
@@ -1015,21 +1073,30 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 
 ## ✅ Checklist de Implementación
 
-### Fase 1: Ingredientes
-- [ ] POST /api/ingredients
-- [ ] GET /api/ingredients
-- [ ] GET /api/ingredients/[id]
-- [ ] PUT /api/ingredients/[id]
-- [ ] DELETE /api/ingredients/[id]
-- [ ] Validaciones y tests
+### Fase 1: Ingredientes ✅ COMPLETA
+- [x] POST /api/ingredients
+- [x] GET /api/ingredients
+- [x] GET /api/ingredients/[id]
+- [x] PUT /api/ingredients/[id]
+- [x] DELETE /api/ingredients/[id]
+- [x] Frontend completo (página, modales, búsqueda, filtros)
+- [x] Validaciones Zod implementadas
+- [ ] Tests (pendiente)
 
-### Fase 2: Productos
-- [ ] POST /api/products
-- [ ] GET /api/products
-- [ ] GET /api/products/[id]
-- [ ] PUT /api/products/[id]
-- [ ] DELETE /api/products/[id]
-- [ ] Validaciones y tests
+### Fase 2: Productos ✅ COMPLETA
+- [x] GET /api/products (mejorado con búsqueda, filtros, articlesCount)
+- [x] POST /api/products
+- [x] GET /api/products/[id] (completo con artículos e ingredientes)
+- [x] PUT /api/products/[id]
+- [x] DELETE /api/products/[id]
+- [x] Frontend completo (página, modales, búsqueda, filtros)
+- [x] Validaciones Zod implementadas
+- [x] APIs de ingredientes de productos:
+  - [x] GET /api/products/[id]/ingredients
+  - [x] POST /api/products/[id]/ingredients
+  - [x] PUT /api/products/[id]/ingredients/[ingredientId]
+  - [x] DELETE /api/products/[id]/ingredients/[ingredientId]
+- [ ] Tests (pendiente)
 
 ### Fase 3: Artículos
 - [ ] POST /api/articles

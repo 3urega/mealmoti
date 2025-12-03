@@ -279,7 +279,7 @@ export default function ListDetailPage() {
                 required
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                 placeholder="Ej: Leche"
               />
             </div>
@@ -296,7 +296,7 @@ export default function ListDetailPage() {
                   type="text"
                   value={newItemQuantity}
                   onChange={(e) => setNewItemQuantity(e.target.value)}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                   placeholder="2"
                 />
               </div>
@@ -312,7 +312,7 @@ export default function ListDetailPage() {
                   type="text"
                   value={newItemUnit}
                   onChange={(e) => setNewItemUnit(e.target.value)}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                   placeholder="litros"
                 />
               </div>
@@ -329,7 +329,7 @@ export default function ListDetailPage() {
                 value={newItemNotes}
                 onChange={(e) => setNewItemNotes(e.target.value)}
                 rows={2}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                 placeholder="Notas adicionales..."
               />
             </div>

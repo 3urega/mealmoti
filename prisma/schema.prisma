@@ -14,15 +14,15 @@ model User {
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relaciones
-  shoppingLists     ShoppingList[]     @relation("ListOwner")
-  sharedLists       ShoppingListShare[]
-  listItems         Item[]
-  createdProducts   Product[]          @relation("ProductCreator")
-  createdArticles   Article[]          @relation("ArticleCreator")
-  createdStores     Store[]            @relation("StoreCreator")
-  
+  shoppingLists   ShoppingList[]      @relation("ListOwner")
+  sharedLists     ShoppingListShare[]
+  listItems       Item[]
+  createdProducts Product[]           @relation("ProductCreator")
+  createdArticles Article[]           @relation("ArticleCreator")
+  createdStores   Store[]             @relation("StoreCreator")
+
   @@index([email])
 }
 
@@ -35,12 +35,12 @@ model Product {
   createdBy   User?    @relation("ProductCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relaciones
   articles     Article[]
   ingredients  ProductIngredient[]
   asIngredient Ingredient?
-  
+
   @@index([name])
   @@index([isGeneral, createdById])
 }
@@ -55,49 +55,49 @@ model Ingredient {
   product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
+
   // Relaciones
   products ProductIngredient[]
   articles ArticleIngredient[]
-  
+
   @@index([name])
   @@index([type])
 }
 
 model ProductIngredient {
-  id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
   ingredientId String
-  ingredient  Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-  isOptional  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  isOptional   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
   @@unique([productId, ingredientId])
   @@index([productId])
   @@index([ingredientId])
 }
 
 model Article {
-  id            String   @id @default(cuid())
-  name          String
-  description   String?
-  productId     String
-  product       Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  brand         String   @default("genérico") // Siempre tiene marca, por defecto "genérico"
-  variant       String?  // Variedad específica (ej: "5L", "integral")
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  brand          String   @default("genérico") // Siempre tiene marca, por defecto "genérico"
+  variant        String? // Variedad específica (ej: "5L", "integral")
   suggestedPrice Float?
-  isGeneral     Boolean  @default(false) // false = particular, true = general
-  createdById   String?
-  createdBy     User?    @relation("ArticleCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  isGeneral      Boolean  @default(false) // false = particular, true = general
+  createdById    String?
+  createdBy      User?    @relation("ArticleCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
   // Relaciones
-  items         Item[]
-  stores        ArticleStore[]
-  ingredients   ArticleIngredient[]
-  
+  items       Item[]
+  stores      ArticleStore[]
+  ingredients ArticleIngredient[]
+
   @@index([name])
   @@index([productId])
   @@index([brand])
@@ -105,50 +105,50 @@ model Article {
 }
 
 model ArticleIngredient {
-  id          String   @id @default(cuid())
-  articleId   String
-  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  articleId    String
+  article      Article    @relation(fields: [articleId], references: [id], onDelete: Cascade)
   ingredientId String
-  ingredient  Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-  isOptional  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  isOptional   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
   @@unique([articleId, ingredientId])
   @@index([articleId])
   @@index([ingredientId])
 }
 
 model Store {
-  id        String   @id @default(cuid())
-  name      String
-  type      String   @default("other") // "supermarket", "specialty", "online", "other"
-  address   String?
-  isGeneral Boolean  @default(false) // false = particular, true = general
+  id          String   @id @default(cuid())
+  name        String
+  type        String   @default("other") // "supermarket", "specialty", "online", "other"
+  address     String?
+  isGeneral   Boolean  @default(false) // false = particular, true = general
   createdById String?
-  createdBy User?    @relation("StoreCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  createdBy   User?    @relation("StoreCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Relaciones
   articles ArticleStore[]
   items    Item[]
-  
+
   @@index([name])
   @@index([isGeneral, createdById])
 }
 
 model ArticleStore {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   articleId     String
-  article       Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  article       Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
   storeId       String
-  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   price         Float?
-  available     Boolean  @default(true)
+  available     Boolean   @default(true)
   lastCheckedAt DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
   @@unique([articleId, storeId])
   @@index([articleId])
   @@index([storeId])
@@ -164,39 +164,39 @@ model ShoppingList {
   statusDate  DateTime @default(now())
   totalCost   Float?
   isTemplate  Boolean  @default(false)
-  templateId  String?  // Si fue creada desde plantilla
+  templateId  String? // Si fue creada desde plantilla
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relaciones
-  items   Item[]
-  shares  ShoppingListShare[]
-  
+  items  Item[]
+  shares ShoppingListShare[]
+
   @@index([ownerId])
   @@index([status])
   @@index([isTemplate])
 }
 
 model Item {
-  id              String        @id @default(cuid())
-  shoppingListId  String
-  shoppingList    ShoppingList  @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
-  articleId       String
-  article         Article       @relation(fields: [articleId], references: [id], onDelete: Restrict)
-  quantity        Float
-  unit            String        @default("unidades")
+  id                String       @id @default(cuid())
+  shoppingListId    String
+  shoppingList      ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  articleId         String
+  article           Article      @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  quantity          Float
+  unit              String       @default("unidades")
   purchasedQuantity Float?
-  price           Float?        // Precio de compra real
-  checked         Boolean       @default(false)
-  storeId         String?
-  store           Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
-  notes           String?
-  addedById       String?
-  addedBy         User?         @relation(fields: [addedById], references: [id], onDelete: SetNull)
-  purchasedAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  price             Float? // Precio de compra real
+  checked           Boolean      @default(false)
+  storeId           String?
+  store             Store?       @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  notes             String?
+  addedById         String?
+  addedBy           User?        @relation(fields: [addedById], references: [id], onDelete: SetNull)
+  purchasedAt       DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
   @@unique([shoppingListId, articleId]) // Un artículo solo puede aparecer una vez por lista
   @@index([shoppingListId])
   @@index([articleId])
@@ -204,14 +204,14 @@ model Item {
 }
 
 model ShoppingListShare {
-  id             String        @id @default(cuid())
+  id             String       @id @default(cuid())
   shoppingListId String
-  shoppingList   ShoppingList  @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  shoppingList   ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
   userId         String
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  canEdit        Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  canEdit        Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
   @@unique([shoppingListId, userId])
   @@index([userId])
   @@index([shoppingListId])
