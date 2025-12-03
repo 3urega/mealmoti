@@ -19,9 +19,18 @@ Este documento describe el plan de desarrollo para implementar los requisitos fu
   - ✅ Permisos y validaciones de integridad
   - ✅ Integración completa frontend-backend
 
+- **Fase 3: Gestión de Artículos (Marcas)** - COMPLETA
+  - ✅ Backend: Todas las APIs implementadas (GET, POST, PUT, DELETE)
+  - ✅ Frontend: Página completa con lista, búsqueda, filtros múltiples, modales de crear/editar/eliminar
+  - ✅ Validaciones Zod implementadas
+  - ✅ Asignación opcional de ingredientes en creación
+  - ✅ Select de productos e ingredientes en modal
+  - ✅ Permisos y validaciones de integridad
+  - ✅ Integración completa frontend-backend
+
 ### 🎯 Siguiente Paso
-- **Fase 3: Gestión de Artículos (Marcas)**
-  - Pendiente: Implementar todas las APIs y crear frontend
+- **Fase 4: Gestión de Ingredientes de Artículos**
+  - Pendiente: Implementar APIs para asignar/editar/eliminar ingredientes de artículos
 
 ### 📋 Requisitos a Implementar
 
@@ -918,12 +927,12 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 - `PUT /api/products/[id]/ingredients/[ingredientId]` - Actualizar relación ingrediente-producto
 - `DELETE /api/products/[id]/ingredients/[ingredientId]` - Eliminar ingrediente del producto
 
-### Fase 3: Artículos (Marcas)
-- `POST /api/articles` - Crear artículo
-- `GET /api/articles` - Listar artículos
-- `GET /api/articles/[id]` - Obtener artículo
+### Fase 3: Artículos (Marcas) ✅ COMPLETA
+- `POST /api/articles` - Crear artículo (con asignación opcional de ingredientes)
+- `GET /api/articles` - Listar artículos (con filtros: productId, general, search, brand, paginación)
+- `GET /api/articles/[id]` - Obtener artículo (con producto, ingredientes, comercios)
 - `PUT /api/articles/[id]` - Actualizar artículo
-- `DELETE /api/articles/[id]` - Eliminar artículo
+- `DELETE /api/articles/[id]` - Eliminar artículo (con validación de items)
 
 ### Fase 4: Ingredientes de Artículos
 - `POST /api/articles/[id]/ingredients` - Asignar ingredientes
@@ -1016,8 +1025,8 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 2. ✅ Fase 2: Gestión de Productos - **COMPLETA** (incluye gestión de ingredientes de productos)
 
 ### Sprint 2: Artículos y Relaciones
-3. Fase 3: Gestión de Artículos
-4. Fase 4: Ingredientes de Artículos
+3. ✅ Fase 3: Gestión de Artículos - **COMPLETA**
+4. 🎯 Fase 4: Ingredientes de Artículos - **SIGUIENTE PASO**
 
 ### Sprint 3: Comercios
 5. Fase 5: Gestión de Comercios
@@ -1098,13 +1107,16 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
   - [x] DELETE /api/products/[id]/ingredients/[ingredientId]
 - [ ] Tests (pendiente)
 
-### Fase 3: Artículos
-- [ ] POST /api/articles
-- [ ] GET /api/articles
-- [ ] GET /api/articles/[id]
-- [ ] PUT /api/articles/[id]
-- [ ] DELETE /api/articles/[id]
-- [ ] Validaciones y tests
+### Fase 3: Artículos ✅ COMPLETA
+- [x] POST /api/articles
+- [x] GET /api/articles (con filtros: productId, general, search, brand, paginación)
+- [x] GET /api/articles/[id] (completo con producto, ingredientes, comercios)
+- [x] PUT /api/articles/[id]
+- [x] DELETE /api/articles/[id]
+- [x] Frontend completo (página, modales, búsqueda, filtros múltiples)
+- [x] Validaciones Zod implementadas
+- [x] Asignación opcional de ingredientes en creación
+- [ ] Tests (pendiente)
 
 ### Fase 4: Ingredientes de Artículos
 - [ ] POST /api/articles/[id]/ingredients

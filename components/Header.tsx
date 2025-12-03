@@ -70,6 +70,18 @@ export default function Header() {
                 >
                   Productos
                 </Link>
+                <Link
+                  href="/app/articles"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Artículos
+                </Link>
+                <Link
+                  href="/app/stores"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Comercios
+                </Link>
                 <span className="text-sm text-gray-600">{user.name}</span>
                 <button
                   onClick={handleLogout}
