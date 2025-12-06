@@ -74,15 +74,16 @@ export default function StoresPage() {
       }
 
       const res = await fetch(`/api/stores?${params.toString()}`);
-      const data: StoreListResponse = await res.json();
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Error al cargar comercios');
+        setError((data as any).error || 'Error al cargar comercios');
         return;
       }
 
-      setStores(data.stores || []);
-      setTotal(data.total || 0);
+      const response = data as StoreListResponse;
+      setStores(response.stores || []);
+      setTotal(response.total || 0);
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching stores:', err);

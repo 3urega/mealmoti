@@ -101,15 +101,16 @@ export default function ArticlesPage() {
       }
 
       const res = await fetch(`/api/articles?${params.toString()}`);
-      const data: ArticleListResponse = await res.json();
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Error al cargar artículos');
+        setError((data as any).error || 'Error al cargar artículos');
         return;
       }
 
-      setArticles(data.articles || []);
-      setTotal(data.total || 0);
+      const response = data as ArticleListResponse;
+      setArticles(response.articles || []);
+      setTotal(response.total || 0);
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching articles:', err);

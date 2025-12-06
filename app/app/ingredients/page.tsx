@@ -64,15 +64,16 @@ export default function IngredientsPage() {
       }
 
       const res = await fetch(`/api/ingredients?${params.toString()}`);
-      const data: IngredientListResponse = await res.json();
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Error al cargar ingredientes');
+        setError((data as any).error || 'Error al cargar ingredientes');
         return;
       }
 
-      setIngredients(data.ingredients || []);
-      setTotal(data.total || 0);
+      const response = data as IngredientListResponse;
+      setIngredients(response.ingredients || []);
+      setTotal(response.total || 0);
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching ingredients:', err);

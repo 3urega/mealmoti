@@ -59,15 +59,16 @@ export default function ProductsPage() {
       }
 
       const res = await fetch(`/api/products?${params.toString()}`);
-      const data: ProductListResponse = await res.json();
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Error al cargar productos');
+        setError((data as any).error || 'Error al cargar productos');
         return;
       }
 
-      setProducts(data.products || []);
-      setTotal(data.total || 0);
+      const response = data as ProductListResponse;
+      setProducts(response.products || []);
+      setTotal(response.total || 0);
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching products:', err);
