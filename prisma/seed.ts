@@ -197,7 +197,7 @@ async function main() {
     console.log(`   Nombre: ${list.name}`);
     console.log(`   Estado: ${list.status}`);
     console.log(`   Items: ${list.items.length}`);
-    console.log(`   Items comprados: ${list.items.filter(i => i.checked).length}\n`);
+    console.log(`   Items comprados: ${list.items.filter((i: typeof list.items[0]) => i.checked).length}\n`);
   } else {
     console.log('ℹ️  Lista de ejemplo ya existe, omitiendo creación\n');
   }
