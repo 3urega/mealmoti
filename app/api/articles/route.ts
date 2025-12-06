@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
           include: {
             ingredient: {
               select: {
-                id: true,  
+                id: true,
                 name: true,
                 type: true,
               },
