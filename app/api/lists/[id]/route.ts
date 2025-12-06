@@ -178,7 +178,7 @@ export async function PUT(
           },
         });
 
-        const totalCost = items.reduce((sum: number, item: typeof items[0]) => {
+        const totalCost = items.reduce((sum: number, item: { price: number | null; purchasedQuantity: number | null }) => {
           if (item.price && item.purchasedQuantity) {
             return sum + item.price * item.purchasedQuantity;
           }

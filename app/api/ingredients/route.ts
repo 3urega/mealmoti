@@ -9,7 +9,7 @@ const createIngredientSchema = z.object({
   description: z.string().optional(),
   allergenInfo: z.string().optional(),
   productId: z.string().nullish(),
-}).refine((data) => {
+}).refine((data: { type: string; productId: string | null | undefined }) => {
   if (data.type === 'product') {
     return !!data.productId;
   }
