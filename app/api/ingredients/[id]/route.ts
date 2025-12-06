@@ -3,13 +3,15 @@ import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-const updateIngredientSchema = z.object({
+const updateIngredientSchemaBase = z.object({
   name: z.string().min(1, 'El nombre es requerido').optional(),
   type: z.enum(['chemical', 'generic', 'product']).optional(),
   description: z.string().optional(),
   allergenInfo: z.string().optional(),
   productId: z.string().nullish(),
-}).refine((data: { type?: string; productId?: string | null }) => {
+});
+
+const updateIngredientSchema = updateIngredientSchemaBase.refine((data: z.infer<typeof updateIngredientSchemaBase>) => {
   if (data.type === 'product') {
     return !!data.productId;
   }
