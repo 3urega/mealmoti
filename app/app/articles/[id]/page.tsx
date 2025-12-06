@@ -357,6 +357,7 @@ export default function ArticleDetailPage() {
         onConfirm={handleStoreDeleted}
         title="Eliminar asociación"
         message={`¿Estás seguro de que quieres eliminar este artículo del comercio "${deletingStore?.name}"?`}
+        itemName={deletingStore?.name || ''}
       />
     </div>
   );
