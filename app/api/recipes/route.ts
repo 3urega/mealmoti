@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
         isGeneral: isGeneral ?? false,
         createdById: user.id,
         ingredients: {
-          create: ingredients.map((ing, index) => ({
+          create: ingredients.map((ing: typeof ingredients[0], index: number) => ({
             productId: ing.productId,
             quantity: ing.quantity,
             unit: ing.unit,

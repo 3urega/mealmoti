@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Formatear respuesta con articlesCount
-    const formattedProducts = products.map((product) => ({
+    const formattedProducts = products.map((product: typeof products[0]) => ({
       id: product.id,
       name: product.name,
       description: product.description,

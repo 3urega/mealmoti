@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
     // Si hay items de receta, crearlos
     if (recipeItems.length > 0) {
       await prisma.item.createMany({
-        data: recipeItems.map((item) => ({
+        data: recipeItems.map((item: typeof recipeItems[0]) => ({
           articleId: item.articleId,
           quantity: item.quantity,
           unit: item.unit,
@@ -349,7 +349,7 @@ export async function POST(request: NextRequest) {
     // Si hay items de plantilla, copiarlos
     if (templateItems.length > 0) {
       await prisma.item.createMany({
-        data: templateItems.map((item) => ({
+        data: templateItems.map((item: typeof templateItems[0]) => ({
           articleId: item.articleId,
           quantity: item.quantity,
           unit: item.unit,

@@ -179,7 +179,7 @@ export async function GET(
     });
 
     // Formatear respuesta
-    const formattedArticles = articles.map((article) => ({
+    const formattedArticles = articles.map((article: typeof articles[0]) => ({
       id: article.id,
       name: article.name,
       brand: article.brand,
@@ -187,7 +187,7 @@ export async function GET(
       suggestedPrice: article.suggestedPrice,
       isGeneral: article.isGeneral,
       createdById: article.createdById,
-      stores: article.stores.map((as) => ({
+      stores: article.stores.map((as: typeof article.stores[0]) => ({
         id: as.store.id,
         name: as.store.name,
         type: as.store.type,
@@ -196,7 +196,7 @@ export async function GET(
         available: as.available,
         lastCheckedAt: as.lastCheckedAt,
       })),
-      ingredients: article.ingredients.map((ai) => ({
+      ingredients: article.ingredients.map((ai: typeof article.ingredients[0]) => ({
         id: ai.ingredient.id,
         name: ai.ingredient.name,
         type: ai.ingredient.type,

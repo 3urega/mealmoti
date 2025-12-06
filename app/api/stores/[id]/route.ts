@@ -95,7 +95,7 @@ export async function GET(
       address: store.address,
       isGeneral: store.isGeneral,
       createdById: store.createdById,
-      articles: store.articles.map((as) => ({
+      articles: store.articles.map((as: typeof store.articles[0]) => ({
         id: as.article.id,
         name: as.article.name,
         brand: as.article.brand,

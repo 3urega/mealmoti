@@ -97,7 +97,7 @@ export async function GET(
       isGeneral: productWithDetails.isGeneral,
       createdById: productWithDetails.createdById,
       articles: productWithDetails.articles,
-      ingredients: productWithDetails.ingredients.map((pi) => ({
+      ingredients: productWithDetails.ingredients.map((pi: typeof productWithDetails.ingredients[0]) => ({
         id: pi.ingredient.id,
         name: pi.ingredient.name,
         type: pi.ingredient.type,

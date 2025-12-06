@@ -86,7 +86,7 @@ export async function GET(
       },
     });
 
-    const stores = articleStores.map((as) => ({
+    const stores = articleStores.map((as: typeof articleStores[0]) => ({
       id: as.store.id,
       name: as.store.name,
       type: as.store.type,

@@ -66,7 +66,7 @@ export async function GET(
       },
     });
 
-    const ingredients = productIngredients.map((pi) => ({
+    const ingredients = productIngredients.map((pi: typeof productIngredients[0]) => ({
       id: pi.ingredient.id,
       name: pi.ingredient.name,
       type: pi.ingredient.type,
@@ -187,7 +187,7 @@ export async function POST(
 
     return NextResponse.json(
       {
-        productIngredients: productIngredients.map((pi) => ({
+        productIngredients: productIngredients.map((pi: typeof productIngredients[0]) => ({
           id: pi.id,
           ingredient: pi.ingredient,
           isOptional: pi.isOptional,

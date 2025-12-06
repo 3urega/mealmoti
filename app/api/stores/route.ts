@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Formatear respuesta con articlesCount
-    const formattedStores = stores.map((store) => ({
+    const formattedStores = stores.map((store: typeof stores[0]) => ({
       id: store.id,
       name: store.name,
       type: store.type,

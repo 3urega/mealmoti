@@ -88,13 +88,13 @@ export async function GET(
           id: ingredient.product.id,
           name: ingredient.product.name,
         },
-        articles: articles.map((article) => ({
+        articles: articles.map((article: typeof articles[0]) => ({
           id: article.id,
           name: article.name,
           brand: article.brand,
           variant: article.variant,
           suggestedPrice: article.suggestedPrice,
-          stores: article.stores.map((as) => ({
+          stores: article.stores.map((as: typeof article.stores[0]) => ({
             id: as.store.id,
             name: as.store.name,
             type: as.store.type,
