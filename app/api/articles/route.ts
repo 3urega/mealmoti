@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
     // Asignar ingredientes si se proporcionan
     if (validatedData.ingredientIds && validatedData.ingredientIds.length > 0) {
       await Promise.all(
-        validatedData.ingredientIds.map((ingredientId) =>
+        validatedData.ingredientIds.map((ingredientId: string) =>
           prisma.articleIngredient.create({
             data: {
               articleId: article.id,

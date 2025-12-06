@@ -133,7 +133,7 @@ export async function POST(
 
     // Crear o actualizar relaciones
     const articleIngredients = await Promise.all(
-      validatedData.ingredientIds.map(async (ingredientId) => {
+      validatedData.ingredientIds.map(async (ingredientId: string) => {
         // Verificar si ya existe
         const existing = await prisma.articleIngredient.findUnique({
           where: {
