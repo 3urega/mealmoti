@@ -66,7 +66,7 @@ export async function GET(
       },
     });
 
-    const ingredients = articleIngredients.map((ai) => ({
+    const ingredients = articleIngredients.map((ai: typeof articleIngredients[0]) => ({
       id: ai.ingredient.id,
       name: ai.ingredient.name,
       type: ai.ingredient.type,
@@ -187,7 +187,7 @@ export async function POST(
 
     return NextResponse.json(
       {
-        articleIngredients: articleIngredients.map((ai) => ({
+        articleIngredients: articleIngredients.map((ai: typeof articleIngredients[0]) => ({
           id: ai.id,
           ingredient: ai.ingredient,
           isOptional: ai.isOptional,
