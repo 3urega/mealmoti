@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import ArticleModal from '@/components/ArticleModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
@@ -30,6 +31,7 @@ interface ArticleListResponse {
 }
 
 export default function ArticlesPage() {
+  const router = useRouter();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -358,7 +360,12 @@ export default function ArticlesPage() {
                 {articles.map((article) => (
                   <tr key={article.id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                      {article.name}
+                      <button
+                        onClick={() => router.push(`/app/articles/${article.id}`)}
+                        className="text-blue-600 hover:text-blue-900 hover:underline"
+                      >
+                        {article.name}
+                      </button>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       {article.product.name}

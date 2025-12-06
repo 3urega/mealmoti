@@ -81,7 +81,13 @@ export async function GET(
                 id: true,
                 name: true,
                 type: true,
+                address: true,
               },
+            },
+          },
+          orderBy: {
+            store: {
+              name: 'asc',
             },
           },
         },
@@ -117,6 +123,7 @@ export async function GET(
         id: as.store.id,
         name: as.store.name,
         type: as.store.type,
+        address: as.store.address,
         price: as.price,
         available: as.available,
         lastCheckedAt: as.lastCheckedAt,

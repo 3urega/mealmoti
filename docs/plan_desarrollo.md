@@ -28,9 +28,29 @@ Este documento describe el plan de desarrollo para implementar los requisitos fu
   - ✅ Permisos y validaciones de integridad
   - ✅ Integración completa frontend-backend
 
+- **Fase 4: Gestión de Ingredientes de Artículos** - COMPLETA
+  - ✅ Backend: Todas las APIs implementadas (GET, POST, PUT, DELETE)
+  - ✅ Validaciones Zod implementadas
+  - ✅ Permisos y validaciones de integridad
+
+- **Fase 5: Gestión de Comercios** - COMPLETA
+  - ✅ Backend: Todas las APIs implementadas (GET, POST, PUT, DELETE)
+  - ✅ Frontend: Página completa con lista, búsqueda, filtros, modales de crear/editar/eliminar
+  - ✅ Validaciones Zod implementadas
+  - ✅ Permisos y validaciones de integridad
+  - ✅ Integración completa frontend-backend
+
+- **Fase 6: Artículos en Comercios** - COMPLETA
+  - ✅ Backend: Todas las APIs implementadas (GET, POST, PUT, DELETE)
+  - ✅ Frontend: Páginas de detalle de artículo y comercio con gestión completa
+  - ✅ Modal para asignar/editar artículo en comercio
+  - ✅ Validaciones Zod implementadas
+  - ✅ Permisos y validaciones de integridad
+  - ✅ Integración completa frontend-backend
+
 ### 🎯 Siguiente Paso
-- **Fase 4: Gestión de Ingredientes de Artículos**
-  - Pendiente: Implementar APIs para asignar/editar/eliminar ingredientes de artículos
+- **Fase 7: Recuperar Artículos por Producto**
+  - Pendiente: Implementar endpoint específico para obtener artículos de un producto con filtros avanzados
 
 ### 📋 Requisitos a Implementar
 
@@ -940,12 +960,12 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 - `DELETE /api/articles/[id]/ingredients/[ingredientId]` - Eliminar ingrediente
 - `GET /api/articles/[id]/ingredients` - Listar ingredientes
 
-### Fase 5: Comercios
+### Fase 5: Comercios ✅ COMPLETA
 - `POST /api/stores` - Crear comercio
-- `GET /api/stores` - Listar comercios
-- `GET /api/stores/[id]` - Obtener comercio
+- `GET /api/stores` - Listar comercios (con filtros: type, search, general, paginación)
+- `GET /api/stores/[id]` - Obtener comercio (con artículos y precios)
 - `PUT /api/stores/[id]` - Actualizar comercio
-- `DELETE /api/stores/[id]` - Eliminar comercio
+- `DELETE /api/stores/[id]` - Eliminar comercio (con validación de artículos e items)
 
 ### Fase 6: Artículos en Comercios
 - `POST /api/articles/[id]/stores` - Asignar artículo a comercio
@@ -1026,11 +1046,15 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 
 ### Sprint 2: Artículos y Relaciones
 3. ✅ Fase 3: Gestión de Artículos - **COMPLETA**
-4. 🎯 Fase 4: Ingredientes de Artículos - **SIGUIENTE PASO**
+4. ✅ Fase 4: Ingredientes de Artículos - **COMPLETA**
 
 ### Sprint 3: Comercios
-5. Fase 5: Gestión de Comercios
-6. Fase 6: Artículos en Comercios
+5. ✅ Fase 5: Gestión de Comercios - **COMPLETA**
+6. ✅ Fase 6: Artículos en Comercios - **COMPLETA**
+
+### Sprint 4: Integración
+7. 🎯 Fase 7: Recuperar Artículos por Producto - **SIGUIENTE PASO**
+8. Fase 8: Crear Ítem desde Artículo-Comercio
 
 ### Sprint 4: Integración
 7. Fase 7: Recuperar Artículos por Producto
@@ -1118,28 +1142,35 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 - [x] Asignación opcional de ingredientes en creación
 - [ ] Tests (pendiente)
 
-### Fase 4: Ingredientes de Artículos
-- [ ] POST /api/articles/[id]/ingredients
-- [ ] PUT /api/articles/[id]/ingredients/[ingredientId]
-- [ ] DELETE /api/articles/[id]/ingredients/[ingredientId]
-- [ ] GET /api/articles/[id]/ingredients
-- [ ] Validaciones y tests
+### Fase 4: Ingredientes de Artículos ✅ COMPLETA
+- [x] POST /api/articles/[id]/ingredients
+- [x] PUT /api/articles/[id]/ingredients/[ingredientId]
+- [x] DELETE /api/articles/[id]/ingredients/[ingredientId]
+- [x] GET /api/articles/[id]/ingredients
+- [x] Validaciones Zod implementadas
+- [ ] Tests (pendiente)
 
-### Fase 5: Comercios
-- [ ] POST /api/stores
-- [ ] GET /api/stores
-- [ ] GET /api/stores/[id]
-- [ ] PUT /api/stores/[id]
-- [ ] DELETE /api/stores/[id]
-- [ ] Validaciones y tests
+### Fase 5: Comercios ✅ COMPLETA
+- [x] POST /api/stores
+- [x] GET /api/stores (con filtros: type, search, general, paginación)
+- [x] GET /api/stores/[id] (completo con artículos y precios)
+- [x] PUT /api/stores/[id]
+- [x] DELETE /api/stores/[id]
+- [x] Frontend completo (página, modales, búsqueda, filtros)
+- [x] Validaciones Zod implementadas
+- [ ] Tests (pendiente)
 
-### Fase 6: Artículos en Comercios
-- [ ] POST /api/articles/[id]/stores
-- [ ] PUT /api/articles/[id]/stores/[storeId]
-- [ ] DELETE /api/articles/[id]/stores/[storeId]
-- [ ] GET /api/articles/[id]/stores
-- [ ] GET /api/stores/[id]/articles
-- [ ] Validaciones y tests
+### Fase 6: Artículos en Comercios ✅ COMPLETA
+- [x] POST /api/articles/[id]/stores
+- [x] PUT /api/articles/[id]/stores/[storeId]
+- [x] DELETE /api/articles/[id]/stores/[storeId]
+- [x] GET /api/articles/[id]/stores
+- [x] GET /api/stores/[id]/articles
+- [x] Frontend: Página de detalle de artículo con gestión de comercios
+- [x] Frontend: Página de detalle de comercio con lista de artículos
+- [x] Frontend: Modal para asignar/editar artículo en comercio
+- [x] Validaciones Zod implementadas
+- [ ] Tests (pendiente)
 
 ### Fase 7: Artículos por Producto
 - [ ] GET /api/products/[id]/articles

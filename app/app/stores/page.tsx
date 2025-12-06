@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import StoreModal from '@/components/StoreModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
@@ -30,6 +31,7 @@ const typeLabels: Record<string, string> = {
 };
 
 export default function StoresPage() {
+  const router = useRouter();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -311,7 +313,12 @@ export default function StoresPage() {
                 {stores.map((store) => (
                   <tr key={store.id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                      {store.name}
+                      <button
+                        onClick={() => router.push(`/app/stores/${store.id}`)}
+                        className="text-blue-600 hover:text-blue-900 hover:underline"
+                      >
+                        {store.name}
+                      </button>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       <span
