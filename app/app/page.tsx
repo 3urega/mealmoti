@@ -2,19 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import ShoppingListCard from '@/components/ShoppingListCard';
+import Link from 'next/link';
+import CategoryCard from '@/components/CategoryCard';
 
 interface ShoppingList {
   id: string;
   name: string;
   description?: string | null;
   ownerId: string;
+  status: string;
   items: Array<{ id: string; checked: boolean }>;
   owner: {
     id: string;
     name: string;
     email: string;
   };
+  shares: Array<{
+    id: string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  }>;
 }
 
 interface User {
@@ -64,6 +74,33 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+
+  // Calcular contadores de categorías
+  const getCategoryCounts = () => {
+    if (!user) return { drafts: 0, active: 0, shared: 0, private: 0 };
+
+    const drafts = lists.filter(
+      (list) => list.status === 'draft' && list.ownerId === user.id
+    ).length;
+
+    const active = lists.filter(
+      (list) => list.status === 'active' && list.ownerId === user.id
+    ).length;
+
+    const shared = lists.filter(
+      (list) => list.shares && list.shares.length > 0
+    ).length;
+
+    const privateLists = lists.filter(
+      (list) =>
+        list.ownerId === user.id &&
+        (!list.shares || list.shares.length === 0)
+    ).length;
+
+    return { drafts, active, shared, private: privateLists };
+  };
+
+  const categoryCounts = getCategoryCounts();
 
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,32 +211,98 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {lists.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-          <p className="text-gray-600">
-            No tienes listas todavía. Crea tu primera lista para comenzar.
-          </p>
+      <div className="mb-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2">
+          <CategoryCard
+            title="Borradores"
+            description="Listas en preparación"
+            count={categoryCounts.drafts}
+            color="from-amber-500 to-amber-600"
+            href="/app/lists/category/draft"
+            icon={
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+            }
+          />
+          <CategoryCard
+            title="Activas"
+            description="Listas en uso"
+            count={categoryCounts.active}
+            color="from-blue-500 to-blue-600"
+            href="/app/lists/category/active"
+            icon={
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            }
+          />
+          <CategoryCard
+            title="Compartidas"
+            description="Listas compartidas con otros"
+            count={categoryCounts.shared}
+            color="from-purple-500 to-purple-600"
+            href="/app/lists/category/shared"
+            icon={
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            }
+          />
+          <CategoryCard
+            title="Privadas"
+            description="Solo para ti"
+            count={categoryCounts.private}
+            color="from-green-500 to-green-600"
+            href="/app/lists/category/private"
+            icon={
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            }
+          />
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {lists.map((list) => {
-            const completedCount = list.items.filter((item) => item.checked)
-              .length;
-            const isOwner = user ? list.ownerId === user.id : false;
-            return (
-              <ShoppingListCard
-                key={list.id}
-                id={list.id}
-                name={list.name}
-                description={list.description}
-                itemCount={list.items.length}
-                completedCount={completedCount}
-                isOwner={isOwner}
-              />
-            );
-          })}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

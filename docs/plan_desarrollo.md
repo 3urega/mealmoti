@@ -48,21 +48,57 @@ Este documento describe el plan de desarrollo para implementar los requisitos fu
   - ✅ Permisos y validaciones de integridad
   - ✅ Integración completa frontend-backend
 
+- **Fase 7: Recuperar Artículos por Producto** - COMPLETA
+  - ✅ Backend: Endpoint GET /api/products/[id]/articles implementado
+  - ✅ Filtros avanzados: storeId, general, search, paginación
+  - ✅ Incluye información de comercios, precios e ingredientes
+  - ✅ Validaciones y permisos implementados
+
+- **Fase 9: Gestión de Listas de Compra** - COMPLETA
+  - ✅ Backend: Todas las APIs implementadas (GET, POST, PUT, DELETE)
+  - ✅ Backend: APIs de compartir listas (POST, DELETE)
+  - ✅ Validaciones Zod implementadas
+  - ✅ Permisos y control de acceso (owner, shared users)
+  - ✅ Frontend: Páginas de listas con gestión completa
+
+- **Fase 8: Crear Ítem desde Artículo-Comercio** - COMPLETA
+  - ✅ Backend: Endpoint POST /api/lists/[id]/items actualizado para usar articleId
+  - ✅ Backend: Endpoint POST /api/lists/[id]/items/from-store implementado
+  - ✅ Validaciones según schema de Prisma implementadas
+  - ✅ Frontend actualizado para usar nuevos endpoints
+
+- **Fase 10: Gestión Avanzada de Ítems** - COMPLETA
+  - ✅ Backend: PUT /api/lists/[id]/items/[itemId] soporta purchasedQuantity, price, purchasedAt, storeId
+  - ✅ Validaciones: purchasedQuantity <= quantity
+  - ✅ Lógica de compra: actualizar purchasedAt automáticamente
+  - ✅ Frontend actualizado con campos avanzados
+
+- **Fase 11: Estados y Plantillas de Listas** - COMPLETA
+  - ✅ Backend: PUT /api/lists/[id] permite cambiar status
+  - ✅ Cálculo automático de totalCost al completar
+  - ✅ POST /api/lists?fromTemplate=[id] implementado
+  - ✅ PUT /api/lists/[id] permite marcar como plantilla (isTemplate)
+  - ✅ Frontend con selector de estado y gestión de plantillas
+
 ### 🎯 Siguiente Paso
-- **Fase 7: Recuperar Artículos por Producto**
-  - Pendiente: Implementar endpoint específico para obtener artículos de un producto con filtros avanzados
+- **Fase 12: Historial y Estadísticas** (opcional, futuro)
+- **Fase 13: Gestión de Recetas** (nueva funcionalidad)
 
 ### 📋 Requisitos a Implementar
 
-1. Añadir ingrediente
-2. Crear producto
-3. Crear/asignar marca a un producto
-4. Asignar/editar ingredientes de una marca
-5. Crear comercio/tienda
-6. Asignar una/varias marca/s a un comercio
-7. Asignar precio a una marca para un comercio
-8. Recuperar marcas a partir de un producto
-9. Crear ítem a partir de una relación (marca/comercio)
+1. ✅ Añadir ingrediente - **COMPLETO**
+2. ✅ Crear producto - **COMPLETO**
+3. ✅ Crear/asignar marca a un producto - **COMPLETO**
+4. ✅ Asignar/editar ingredientes de una marca - **COMPLETO**
+5. ✅ Crear comercio/tienda - **COMPLETO**
+6. ✅ Asignar una/varias marca/s a un comercio - **COMPLETO**
+7. ✅ Asignar precio a una marca para un comercio - **COMPLETO**
+8. ✅ Recuperar marcas a partir de un producto - **COMPLETO**
+9. ✅ Crear ítem a partir de una relación (marca/comercio) - **COMPLETO**
+10. ✅ Gestión avanzada de ítems (precio, cantidad comprada) - **COMPLETO**
+11. ✅ Estados y plantillas de listas - **COMPLETO**
+12. 🎯 Historial y estadísticas - **PENDIENTE** (opcional, futuro)
+13. 🎯 Gestión de recetas - **PENDIENTE** (nueva funcionalidad)
 
 ---
 
@@ -838,7 +874,10 @@ Permitir obtener todos los artículos (marcas) asociados a un producto.
 ## 🎯 Fase 8: Crear Ítem desde Artículo-Comercio
 
 ### Objetivo
-Permitir crear ítems en listas de compra a partir de un artículo y opcionalmente un comercio.
+Permitir crear ítems en listas de compra a partir de un artículo y opcionalmente un comercio. Actualizar el endpoint actual para usar `articleId` según el schema de Prisma.
+
+### Estado Actual
+El endpoint actual `POST /api/lists/[id]/items` usa `name` como campo, pero el schema de Prisma requiere `articleId` y una relación con el modelo `Article`. Es necesario actualizar la implementación.
 
 ### Tareas
 
@@ -848,6 +887,7 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 **Funcionalidad:**
 - Crear un ítem en una lista de compra a partir de un artículo
 - Opcionalmente puede incluir el comercio donde se comprará
+- **Cambio requerido:** Actualizar para usar `articleId` en lugar de `name`
 
 **Request Body:**
 ```json
@@ -861,11 +901,18 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 ```
 
 **Validaciones:**
-- `articleId`: requerido, debe existir
-- `quantity`: requerido, debe ser un número positivo
+- `articleId`: requerido, debe existir y ser accesible por el usuario
+- `quantity`: requerido, debe ser un número positivo (Float según schema)
 - `unit`: opcional, default "unidades"
 - `storeId`: opcional, si se proporciona debe existir y el artículo debe estar disponible en ese comercio
-- Un artículo solo puede aparecer una vez por lista (unique constraint)
+- Un artículo solo puede aparecer una vez por lista (unique constraint: `shoppingListId + articleId`)
+
+**Cambios de Implementación:**
+- Actualizar schema Zod: reemplazar `name` por `articleId`
+- Cambiar `quantity` de `String` a `Float` según schema
+- Verificar que el artículo existe antes de crear
+- Verificar unique constraint antes de crear
+- Incluir relación con `article` (y `store` si se proporciona) en la respuesta
 
 **Response:**
 ```json
@@ -892,7 +939,8 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
     "addedBy": {
       "id": "...",
       "name": "Usuario de Prueba"
-    }
+    },
+    "createdAt": "2024-01-15T10:00:00Z"
   }
 }
 ```
@@ -903,6 +951,7 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 **Funcionalidad:**
 - Crear ítem específicamente desde la relación artículo-comercio
 - Útil cuando se selecciona desde la vista de comercio
+- Verificar que el artículo esté disponible en el comercio
 
 **Request Body:**
 ```json
@@ -916,14 +965,782 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 ```
 
 **Validaciones:**
-- `storeId`: requerido en este endpoint
-- Verificar que el artículo esté disponible en el comercio
-- Usar el precio del comercio como referencia (no se asigna automáticamente, se asigna al comprar)
+- `articleId`: requerido, debe existir
+- `storeId`: requerido, debe existir
+- Verificar que existe `ArticleStore` con `articleId` y `storeId`
+- Verificar que `available = true` en `ArticleStore`
+- `quantity`: requerido, número positivo
+- Unique constraint: un artículo solo una vez por lista
+
+**Response:**
+```json
+{
+  "item": {
+    "id": "...",
+    "article": {
+      "id": "...",
+      "name": "Tortillas de maíz Hacendado",
+      "brand": "Hacendado"
+    },
+    "quantity": 2,
+    "unit": "paquetes",
+    "store": {
+      "id": "...",
+      "name": "Mercadona",
+      "price": 1.45
+    },
+    "checked": false,
+    "addedBy": {...}
+  }
+}
+```
 
 #### 8.3 Mejora: Sugerir Precio al Crear Ítem
 **Funcionalidad:**
-- Si se proporciona `storeId`, sugerir el precio del `ArticleStore`
-- El precio real se establece al marcar como comprado
+- Si se proporciona `storeId`, incluir el precio sugerido del `ArticleStore` en la respuesta
+- El precio real se establece al marcar como comprado (Fase 10)
+- Mostrar precio sugerido en el frontend para referencia
+
+---
+
+## 🎯 Fase 9: Gestión de Listas de Compra
+
+### Objetivo
+Permitir crear y gestionar listas de compra, incluyendo compartir con otros usuarios.
+
+### Tareas
+
+#### 9.1 API: Listar Listas de Compra
+**Endpoint:** `GET /api/lists`
+
+**Funcionalidad:**
+- Retorna listas propias del usuario y listas compartidas con él
+- Incluye información de items, owner y usuarios compartidos
+
+**Response:**
+```json
+{
+  "lists": [
+    {
+      "id": "...",
+      "name": "Compra semanal",
+      "description": "...",
+      "owner": {
+        "id": "...",
+        "name": "Usuario",
+        "email": "usuario@example.com"
+      },
+      "items": [...],
+      "shares": [
+        {
+          "user": {
+            "id": "...",
+            "name": "Usuario Compartido",
+            "email": "compartido@example.com"
+          },
+          "canEdit": true
+        }
+      ],
+      "createdAt": "2024-01-15T10:00:00Z",
+      "updatedAt": "2024-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### 9.2 API: Crear Lista de Compra
+**Endpoint:** `POST /api/lists`
+
+**Funcionalidad:**
+- Crear una nueva lista de compra
+- El usuario autenticado se convierte en el owner
+
+**Request Body:**
+```json
+{
+  "name": "Compra semanal",
+  "description": "Lista para la compra de la semana"
+}
+```
+
+**Validaciones:**
+- `name`: requerido, mínimo 1 carácter
+- `description`: opcional
+
+**Response:**
+```json
+{
+  "list": {
+    "id": "...",
+    "name": "Compra semanal",
+    "description": "...",
+    "owner": {
+      "id": "...",
+      "name": "Usuario",
+      "email": "usuario@example.com"
+    },
+    "items": [],
+    "shares": [],
+    "createdAt": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+#### 9.3 API: Obtener Lista de Compra
+**Endpoint:** `GET /api/lists/[id]`
+
+**Funcionalidad:**
+- Obtener una lista específica con todos sus detalles
+- Verificar que el usuario tenga acceso (owner o compartida)
+
+**Response:**
+```json
+{
+  "list": {
+    "id": "...",
+    "name": "Compra semanal",
+    "description": "...",
+    "owner": {
+      "id": "...",
+      "name": "Usuario",
+      "email": "usuario@example.com"
+    },
+    "items": [
+      {
+        "id": "...",
+        "name": "...",
+        "quantity": "...",
+        "unit": "...",
+        "checked": false,
+        "notes": "...",
+        "addedBy": {
+          "id": "...",
+          "name": "Usuario"
+        }
+      }
+    ],
+    "shares": [...],
+    "createdAt": "2024-01-15T10:00:00Z",
+    "updatedAt": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+#### 9.4 API: Actualizar Lista de Compra
+**Endpoint:** `PUT /api/lists/[id]`
+
+**Funcionalidad:**
+- Actualizar nombre y descripción de la lista
+- Solo el owner puede actualizar estos campos
+
+**Request Body:**
+```json
+{
+  "name": "Compra mensual",
+  "description": "Lista actualizada"
+}
+```
+
+**Validaciones:**
+- Solo el owner puede actualizar nombre y descripción
+- Usuarios compartidos con `canEdit: true` pueden modificar items pero no la lista en sí
+
+#### 9.5 API: Eliminar Lista de Compra
+**Endpoint:** `DELETE /api/lists/[id]`
+
+**Funcionalidad:**
+- Eliminar una lista de compra
+- Solo el owner puede eliminar
+
+**Validaciones:**
+- Solo el owner puede eliminar
+- Se eliminan automáticamente todos los items asociados (onDelete: Cascade)
+
+#### 9.6 API: Compartir Lista con Usuario
+**Endpoint:** `POST /api/lists/[id]/share`
+
+**Funcionalidad:**
+- Compartir una lista con otro usuario por email
+- Especificar permisos de edición
+
+**Request Body:**
+```json
+{
+  "email": "usuario@example.com",
+  "canEdit": true
+}
+```
+
+**Validaciones:**
+- Solo el owner puede compartir
+- El email debe corresponder a un usuario existente
+- No se puede compartir consigo mismo
+- Si ya existe el share, se actualiza
+
+**Response:**
+```json
+{
+  "share": {
+    "id": "...",
+    "user": {
+      "id": "...",
+      "name": "Usuario Compartido",
+      "email": "usuario@example.com"
+    },
+    "canEdit": true,
+    "createdAt": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+#### 9.7 API: Remover Acceso a Lista
+**Endpoint:** `DELETE /api/lists/[id]/share/[userId]`
+
+**Funcionalidad:**
+- Remover el acceso de un usuario a una lista compartida
+- Solo el owner puede remover acceso
+
+**Validaciones:**
+- Solo el owner puede remover acceso
+
+---
+
+## 🎯 Fase 10: Gestión Avanzada de Ítems
+
+### Objetivo
+Permitir gestionar ítems con información completa de compra: precio real, cantidad comprada, fecha de compra.
+
+### Tareas
+
+#### 10.1 API: Actualizar Ítem Completo
+**Endpoint:** `PUT /api/lists/[id]/items/[itemId]`
+
+**Funcionalidad:**
+- Actualizar todos los campos de un ítem, incluyendo información de compra
+- Marcar como comprado y registrar datos de compra
+
+**Request Body:**
+```json
+{
+  "checked": true,
+  "quantity": 2,
+  "purchasedQuantity": 2,
+  "price": 1.45,
+  "storeId": "...",
+  "purchasedAt": "2024-01-15T10:00:00Z",
+  "notes": "Actualizado"
+}
+```
+
+**Validaciones:**
+- `purchasedQuantity`: debe ser <= `quantity`
+- `price`: debe ser positivo si se proporciona
+- `storeId`: debe existir si se proporciona
+- Solo usuarios con acceso y permiso de edición pueden actualizar
+
+**Response:**
+```json
+{
+  "item": {
+    "id": "...",
+    "article": {
+      "id": "...",
+      "name": "Tortillas de maíz Hacendado",
+      "brand": "Hacendado",
+      "product": {
+        "id": "...",
+        "name": "Tortillas"
+      }
+    },
+    "quantity": 2,
+    "purchasedQuantity": 2,
+    "unit": "paquetes",
+    "checked": true,
+    "price": 1.45,
+    "store": {
+      "id": "...",
+      "name": "Mercadona"
+    },
+    "purchasedAt": "2024-01-15T10:00:00Z",
+    "notes": "Actualizado",
+    "addedBy": {
+      "id": "...",
+      "name": "Usuario"
+    }
+  }
+}
+```
+
+#### 10.2 Lógica de Compra
+**Funcionalidad:**
+- Cuando `checked = true` y se proporciona `price`, registrar la compra
+- `purchasedAt` se establece automáticamente si no se proporciona
+- Si `purchasedQuantity < quantity`, el ítem queda parcialmente comprado
+- Actualizar `totalCost` de la lista cuando se completa
+
+---
+
+## 🎯 Fase 11: Estados y Plantillas de Listas
+
+### Objetivo
+Gestionar estados de listas de compra y permitir crear plantillas reutilizables.
+
+### Tareas
+
+#### 11.1 API: Actualizar Estado de Lista
+**Endpoint:** `PUT /api/lists/[id]`
+
+**Funcionalidad:**
+- Permitir cambiar el estado de la lista: `draft`, `active`, `completed`, `archived`
+- Actualizar `statusDate` automáticamente
+- Calcular `totalCost` cuando se marca como `completed`
+
+**Request Body:**
+```json
+{
+  "status": "completed"
+}
+```
+
+**Estados:**
+- `draft`: Lista en borrador, aún no activa
+- `active`: Lista activa, lista de compra en uso
+- `completed`: Lista completada, compra finalizada
+- `archived`: Lista archivada, histórica
+
+**Validaciones:**
+- Solo el owner puede cambiar el estado
+- Al marcar como `completed`, calcular `totalCost` sumando `price * purchasedQuantity` de todos los items comprados
+- Actualizar `statusDate` al cambiar estado
+
+#### 11.2 API: Crear Lista desde Plantilla
+**Endpoint:** `POST /api/lists?fromTemplate=[templateId]`
+
+**Funcionalidad:**
+- Crear una nueva lista copiando items de una plantilla
+- Los items se copian pero son independientes
+
+**Query Params:**
+- `fromTemplate`: ID de la lista plantilla
+
+**Request Body:**
+```json
+{
+  "name": "Compra semanal - Semana 2",
+  "description": "Copia de plantilla"
+}
+```
+
+**Validaciones:**
+- La plantilla debe existir y ser accesible
+- La plantilla debe tener `isTemplate = true`
+- Los items copiados no mantienen relación con la plantilla
+
+#### 11.3 API: Marcar Lista como Plantilla
+**Endpoint:** `PUT /api/lists/[id]`
+
+**Funcionalidad:**
+- Marcar una lista como plantilla para reutilización
+- Las plantillas pueden usarse para crear nuevas listas
+
+**Request Body:**
+```json
+{
+  "isTemplate": true
+}
+```
+
+**Validaciones:**
+- Solo el owner puede marcar como plantilla
+- Una plantilla puede tener `status` pero normalmente será `draft` o `archived`
+
+#### 11.4 Cálculo Automático de Total
+**Funcionalidad:**
+- Al marcar lista como `completed`, calcular automáticamente `totalCost`
+- Sumar `price * purchasedQuantity` de todos los items con `checked = true` y `price` definido
+- Actualizar `totalCost` en la lista
+
+---
+
+## 🎯 Fase 12: Historial y Estadísticas
+
+### Objetivo
+Proporcionar funcionalidades de historial y análisis de compras.
+
+### Tareas
+
+#### 12.1 API: Listar Listas Completadas
+**Endpoint:** `GET /api/lists?status=completed`
+
+**Funcionalidad:**
+- Obtener historial de listas completadas
+- Incluir información de totalCost y fecha de finalización
+
+**Query Params:**
+- `status`: Filtrar por estado (`completed`, `archived`)
+- `limit`: Límite de resultados
+- `offset`: Paginación
+
+**Response:**
+```json
+{
+  "lists": [
+    {
+      "id": "...",
+      "name": "Compra semanal",
+      "status": "completed",
+      "totalCost": 45.50,
+      "statusDate": "2024-01-15T10:00:00Z",
+      "items": [...]
+    }
+  ],
+  "total": 10
+}
+```
+
+#### 12.2 API: Estadísticas de Compras
+**Endpoint:** `GET /api/stats/purchases`
+
+**Funcionalidad:**
+- Obtener estadísticas agregadas de compras del usuario
+
+**Query Params:**
+- `startDate`: Fecha de inicio (opcional)
+- `endDate`: Fecha de fin (opcional)
+
+**Response:**
+```json
+{
+  "totalSpent": 450.75,
+  "totalLists": 15,
+  "averageListCost": 30.05,
+  "mostPurchasedArticles": [
+    {
+      "article": {
+        "id": "...",
+        "name": "Tortillas de maíz Hacendado"
+      },
+      "timesPurchased": 12,
+      "totalSpent": 17.40
+    }
+  ],
+  "period": {
+    "startDate": "2024-01-01T00:00:00Z",
+    "endDate": "2024-01-31T23:59:59Z"
+  }
+}
+```
+
+#### 12.3 Comparación de Precios Históricos
+**Funcionalidad:**
+- Comparar precios de un artículo a lo largo del tiempo
+- Identificar tendencias de precios
+- Sugerir mejor momento para comprar
+
+**Nota:** Esta funcionalidad requiere almacenar historial de precios, que puede implementarse en el futuro.
+
+---
+
+## 🎯 Fase 13: Gestión de Recetas
+
+### Objetivo
+Permitir crear y gestionar recetas como conjuntos de ingredientes a comprar. Las recetas se crean usando SOLO productos (no artículos), ya que los artículos son demasiado específicos para recetas.
+
+### Concepto
+En esta fase, una receta es simplemente un **conjunto de ingredientes a comprar**. 
+
+**Ejemplo:**
+- ✅ Receta contiene: "6 huevos" (producto)
+- ❌ NO contiene: "6 huevos ecológicos tamaño M marca X" (artículo)
+
+**Características:**
+- Las recetas contienen SOLO productos como ingredientes
+- Los artículos son demasiado específicos para recetas
+- Información opcional (descripción, instrucciones, tiempos) puede existir pero no es prioritaria
+- El foco está en los ingredientes a comprar
+
+### Tareas
+
+#### 13.1 Schema: Modelos de Receta
+**Modelos Prisma:**
+
+```prisma
+model Recipe {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  instructions String?
+  servings    Int?
+  prepTime    Int?    // minutos
+  cookTime    Int?    // minutos
+  isGeneral   Boolean  @default(false)
+  createdById String?
+  createdBy   User?    @relation("RecipeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ingredients RecipeIngredient[]
+
+  @@index([name])
+  @@index([isGeneral, createdById])
+}
+
+model RecipeIngredient {
+  id          String   @id @default(cuid())
+  recipeId    String
+  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity    Float
+  unit        String   @default("unidades")
+  isOptional  Boolean  @default(false)
+  notes       String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([recipeId])
+  @@index([productId])
+}
+```
+
+**Actualizar modelo ShoppingList:**
+```prisma
+model ShoppingList {
+  // ... campos existentes ...
+  recipeId    String?  // Si fue creada desde una receta
+  recipe      Recipe?   @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+}
+```
+
+#### 13.2 API: Crear Receta
+**Endpoint:** `POST /api/recipes`
+
+**Request Body:**
+```json
+{
+  "name": "Paella marinera",
+  "description": "Paella tradicional con marisco",
+  "instructions": "1. Sofreír...",
+  "servings": 4,
+  "prepTime": 30,
+  "cookTime": 45,
+  "isGeneral": false,
+  "ingredients": [
+    {
+      "productId": "...",
+      "quantity": 500,
+      "unit": "gr",
+      "isOptional": false,
+      "notes": "Arroz bomba preferiblemente",
+      "order": 1
+    },
+    {
+      "productId": "...",
+      "quantity": 6,
+      "unit": "unidades",
+      "isOptional": false,
+      "notes": "Huevos frescos",
+      "order": 2
+    }
+  ]
+}
+```
+
+**Validaciones:**
+- `name`: requerido
+- Al menos un ingrediente requerido
+- Cada ingrediente debe tener `productId` (requerido, solo productos)
+- `quantity` debe ser positivo
+- `unit` requerido
+
+**Response:**
+```json
+{
+  "recipe": {
+    "id": "...",
+    "name": "Paella marinera",
+    "description": "Paella tradicional con marisco",
+    "servings": 4,
+    "ingredients": [
+      {
+        "id": "...",
+        "product": {
+          "id": "...",
+          "name": "Arroz"
+        },
+        "quantity": 500,
+        "unit": "gr",
+        "isOptional": false,
+        "notes": "Arroz bomba preferiblemente"
+      }
+    ],
+    "createdAt": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+#### 13.3 API: Listar Recetas
+**Endpoint:** `GET /api/recipes`
+
+**Query Params:**
+- `search`: Búsqueda por nombre
+- `general`: boolean - Solo recetas generales
+- `limit`: number (default: 50)
+- `offset`: number (default: 0)
+
+**Response:** Incluye recetas generales + particulares del usuario
+
+#### 13.4 API: Obtener Receta
+**Endpoint:** `GET /api/recipes/[id]`
+
+**Response:** Receta completa con ingredientes (productos)
+
+#### 13.5 API: Actualizar Receta
+**Endpoint:** `PUT /api/recipes/[id]`
+
+**Funcionalidad:** Actualizar información de la receta e ingredientes
+
+**Validaciones:** Solo el creador puede actualizar recetas particulares
+
+#### 13.6 API: Eliminar Receta
+**Endpoint:** `DELETE /api/recipes/[id]`
+
+**Validaciones:** Solo el creador puede eliminar recetas particulares
+
+#### 13.7 API: Gestión de Ingredientes de Receta
+**Endpoints:**
+- `GET /api/recipes/[id]/ingredients` - Listar ingredientes
+- `POST /api/recipes/[id]/ingredients` - Agregar ingrediente
+- `PUT /api/recipes/[id]/ingredients/[ingredientId]` - Actualizar ingrediente
+- `DELETE /api/recipes/[id]/ingredients/[ingredientId]` - Eliminar ingrediente
+
+---
+
+## 🎯 Fase 14: Convertir Receta a Lista de Compra
+
+### Objetivo
+Permitir crear una lista de compra a partir de una receta, seleccionando artículos específicos para cada producto de la receta.
+
+### Tareas
+
+#### 14.1 API: Crear Lista desde Receta
+**Endpoint:** `POST /api/lists?fromRecipe=[recipeId]`
+
+**Funcionalidad:**
+- Crear una nueva lista de compra desde una receta
+- Para cada ingrediente (producto) de la receta, el usuario debe seleccionar un artículo
+- Permitir ajustar cantidades según número de porciones
+- Opcionalmente multiplicar cantidades si se especifica número de porciones diferente
+
+**Request Body:**
+```json
+{
+  "name": "Lista: Paella marinera",
+  "description": "Lista generada desde receta",
+  "servings": 4,
+  "ingredientSelections": {
+    "recipeIngredientId1": {
+      "articleId": "articleId1",
+      "quantity": 500,
+      "unit": "gr"
+    },
+    "recipeIngredientId2": {
+      "articleId": "articleId2",
+      "quantity": 6,
+      "unit": "unidades"
+    }
+  }
+}
+```
+
+**Validaciones:**
+- `recipeId` debe existir y ser accesible
+- Todos los ingredientes de la receta deben tener un artículo seleccionado
+- `articleId` debe existir y ser accesible
+- `quantity` debe ser positivo
+- Si se especifica `servings`, multiplicar cantidades proporcionalmente
+
+**Response:**
+```json
+{
+  "list": {
+    "id": "...",
+    "name": "Lista: Paella marinera",
+    "recipeId": "...",
+    "items": [
+      {
+        "id": "...",
+        "article": {
+          "id": "...",
+          "name": "Arroz bomba Hacendado"
+        },
+        "quantity": 500,
+        "unit": "gr"
+      }
+    ]
+  }
+}
+```
+
+#### 14.2 API: Obtener Artículos Disponibles para Producto
+**Endpoint:** `GET /api/recipes/[id]/ingredients/[ingredientId]/articles`
+
+**Funcionalidad:**
+- Obtener artículos disponibles para un producto específico de la receta
+- Útil para el frontend al mostrar selector de artículos
+
+**Response:**
+```json
+{
+  "product": {
+    "id": "...",
+    "name": "Arroz"
+  },
+  "articles": [
+    {
+      "id": "...",
+      "name": "Arroz bomba Hacendado",
+      "brand": "Hacendado",
+      "suggestedPrice": 2.50,
+      "stores": [
+        {
+          "id": "...",
+          "name": "Mercadona",
+          "price": 2.45
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### 14.3 Frontend: Selector de Artículos
+**Funcionalidad:**
+- Al crear lista desde receta, mostrar modal/página
+- Para cada ingrediente (producto), mostrar selector de artículos disponibles
+- Mostrar precios sugeridos de cada artículo
+- Permitir ajustar cantidades
+- Validar que todos los ingredientes tienen artículo seleccionado antes de crear lista
+- Opcionalmente permitir ajustar número de porciones y recalcular cantidades
+
+### Consideraciones Técnicas
+
+1. **Validación de Ingredientes:**
+   - Un RecipeIngredient debe tener `productId` (requerido, solo productos)
+   - Validar que el producto existe y es accesible
+
+2. **Conversión a Lista:**
+   - Los ingredientes con `productId` requieren selección de artículo por el usuario
+   - Mantener referencia a la receta original en la lista (`recipeId`)
+
+3. **Escalado de Cantidades:**
+   - Si la receta es para 4 personas y quiero hacer para 8, multiplicar cantidades por 2
+   - Campo `servings` en Recipe y parámetro `servings` al crear lista
+
+4. **Permisos:**
+   - Recetas generales: visibles para todos
+   - Recetas particulares: solo visibles para el creador
+   - Misma lógica que productos/artículos
 
 ---
 
@@ -974,12 +1791,48 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 - `GET /api/articles/[id]/stores` - Listar comercios del artículo
 - `GET /api/stores/[id]/articles` - Listar artículos del comercio
 
-### Fase 7: Artículos por Producto
-- `GET /api/products/[id]/articles` - Obtener artículos de un producto
+### Fase 7: Artículos por Producto ✅ COMPLETA
+- `GET /api/products/[id]/articles` - Obtener artículos de un producto (con filtros avanzados)
 
-### Fase 8: Crear Ítem
-- `POST /api/lists/[id]/items` - Crear ítem desde artículo
+### Fase 8: Crear Ítem desde Artículo-Comercio
+- `POST /api/lists/[id]/items` - Crear ítem desde artículo (actualizar para usar articleId)
 - `POST /api/lists/[id]/items/from-store` - Crear ítem desde artículo-comercio
+
+### Fase 9: Gestión de Listas de Compra ✅ COMPLETA
+- `GET /api/lists` - Listar listas (propias y compartidas)
+- `POST /api/lists` - Crear lista
+- `GET /api/lists/[id]` - Obtener lista con items y shares
+- `PUT /api/lists/[id]` - Actualizar lista (nombre, descripción)
+- `DELETE /api/lists/[id]` - Eliminar lista (solo owner)
+- `POST /api/lists/[id]/share` - Compartir lista con usuario
+- `DELETE /api/lists/[id]/share/[userId]` - Remover acceso
+
+### Fase 10: Gestión Avanzada de Ítems
+- `PUT /api/lists/[id]/items/[itemId]` - Actualizar ítem completo (checked, purchasedQuantity, price, purchasedAt)
+
+### Fase 11: Estados y Plantillas de Listas
+- `PUT /api/lists/[id]` - Actualizar estado de lista (status, totalCost)
+- `POST /api/lists?fromTemplate=[id]` - Crear lista desde plantilla
+- `PUT /api/lists/[id]` - Marcar lista como plantilla (isTemplate)
+
+### Fase 12: Historial y Estadísticas
+- `GET /api/lists?status=completed` - Listar listas completadas
+- `GET /api/stats/purchases` - Estadísticas de compras
+
+### Fase 13: Gestión de Recetas
+- `POST /api/recipes` - Crear receta
+- `GET /api/recipes` - Listar recetas (con búsqueda, filtros, paginación)
+- `GET /api/recipes/[id]` - Obtener receta (con ingredientes)
+- `PUT /api/recipes/[id]` - Actualizar receta
+- `DELETE /api/recipes/[id]` - Eliminar receta
+- `GET /api/recipes/[id]/ingredients` - Listar ingredientes de la receta
+- `POST /api/recipes/[id]/ingredients` - Agregar ingrediente a receta
+- `PUT /api/recipes/[id]/ingredients/[ingredientId]` - Actualizar ingrediente
+- `DELETE /api/recipes/[id]/ingredients/[ingredientId]` - Eliminar ingrediente
+
+### Fase 14: Convertir Receta a Lista de Compra
+- `POST /api/lists?fromRecipe=[recipeId]` - Crear lista desde receta
+- `GET /api/recipes/[id]/ingredients/[ingredientId]/articles` - Obtener artículos disponibles para producto
 
 ---
 
@@ -1053,12 +1906,14 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 6. ✅ Fase 6: Artículos en Comercios - **COMPLETA**
 
 ### Sprint 4: Integración
-7. 🎯 Fase 7: Recuperar Artículos por Producto - **SIGUIENTE PASO**
-8. Fase 8: Crear Ítem desde Artículo-Comercio
+7. ✅ Fase 7: Recuperar Artículos por Producto - **COMPLETA**
+8. ✅ Fase 9: Gestión de Listas de Compra - **COMPLETA**
+9. 🎯 Fase 8: Crear Ítem desde Artículo-Comercio - **SIGUIENTE PASO**
 
-### Sprint 4: Integración
-7. Fase 7: Recuperar Artículos por Producto
-8. Fase 8: Crear Ítem desde Artículo-Comercio
+### Sprint 5: Gestión Avanzada
+10. Fase 10: Gestión Avanzada de Ítems
+11. Fase 11: Estados y Plantillas de Listas
+12. Fase 12: Historial y Estadísticas (futuro)
 
 ---
 
@@ -1172,16 +2027,75 @@ Permitir crear ítems en listas de compra a partir de un artículo y opcionalmen
 - [x] Validaciones Zod implementadas
 - [ ] Tests (pendiente)
 
-### Fase 7: Artículos por Producto
-- [ ] GET /api/products/[id]/articles
-- [ ] Integración en GET /api/products/[id]
-- [ ] Validaciones y tests
+### Fase 7: Artículos por Producto ✅ COMPLETA
+- [x] GET /api/products/[id]/articles (implementado con filtros avanzados)
+- [x] Integración en GET /api/products/[id]
+- [x] Validaciones y permisos implementados
+- [ ] Tests (pendiente)
 
-### Fase 8: Crear Ítem
-- [ ] POST /api/lists/[id]/items (actualizar para usar articleId)
-- [ ] POST /api/lists/[id]/items/from-store
-- [ ] Validaciones y tests
-- [ ] Actualizar frontend para usar nuevos endpoints
+### Fase 8: Crear Ítem desde Artículo-Comercio ✅ COMPLETA
+- [x] POST /api/lists/[id]/items (actualizado para usar articleId en lugar de name)
+- [x] POST /api/lists/[id]/items/from-store
+- [x] Validaciones: articleId requerido, unique constraint, verificar existencia
+- [x] Incluir relaciones con article y store en respuestas
+- [x] Actualizar frontend para usar nuevos endpoints
+- [ ] Tests (pendiente)
+
+### Fase 9: Gestión de Listas de Compra ✅ COMPLETA
+- [x] GET /api/lists (listar propias y compartidas)
+- [x] POST /api/lists (crear lista)
+- [x] GET /api/lists/[id] (obtener con items y shares)
+- [x] PUT /api/lists/[id] (actualizar nombre, descripción)
+- [x] DELETE /api/lists/[id] (eliminar, solo owner)
+- [x] POST /api/lists/[id]/share (compartir con usuario)
+- [x] DELETE /api/lists/[id]/share/[userId] (remover acceso)
+- [x] Validaciones Zod implementadas
+- [x] Permisos y control de acceso implementados
+- [ ] Tests (pendiente)
+
+### Fase 10: Gestión Avanzada de Ítems ✅ COMPLETA
+- [x] PUT /api/lists/[id]/items/[itemId] (soporta purchasedQuantity, price, purchasedAt, storeId)
+- [x] Validaciones: purchasedQuantity <= quantity
+- [x] Incluir relaciones con article y store en respuestas
+- [x] Lógica de compra: actualizar purchasedAt automáticamente
+- [ ] Tests (pendiente)
+
+### Fase 11: Estados y Plantillas de Listas ✅ COMPLETA
+- [x] PUT /api/lists/[id] (permite cambiar status)
+- [x] Calcular totalCost automáticamente al completar
+- [x] POST /api/lists?fromTemplate=[id] (crear desde plantilla)
+- [x] PUT /api/lists/[id] (marcar como plantilla)
+- [x] Validaciones de estados y transiciones
+- [ ] Tests (pendiente)
+
+### Fase 12: Historial y Estadísticas
+- [ ] GET /api/lists?status=completed (listar completadas)
+- [ ] GET /api/stats/purchases (estadísticas agregadas)
+- [ ] Comparación de precios históricos (futuro)
+- [ ] Tests (pendiente)
+
+### Fase 13: Gestión de Recetas
+- [ ] Schema Prisma: Agregar modelos Recipe y RecipeIngredient
+- [ ] POST /api/recipes (crear receta)
+- [ ] GET /api/recipes (listar recetas)
+- [ ] GET /api/recipes/[id] (obtener receta)
+- [ ] PUT /api/recipes/[id] (actualizar receta)
+- [ ] DELETE /api/recipes/[id] (eliminar receta)
+- [ ] GET /api/recipes/[id]/ingredients (listar ingredientes)
+- [ ] POST /api/recipes/[id]/ingredients (agregar ingrediente)
+- [ ] PUT /api/recipes/[id]/ingredients/[ingredientId] (actualizar ingrediente)
+- [ ] DELETE /api/recipes/[id]/ingredients/[ingredientId] (eliminar ingrediente)
+- [ ] Frontend: Listar y ver recetas
+- [ ] Frontend: Crear/editar recetas
+- [ ] Tests (pendiente)
+
+### Fase 14: Convertir Receta a Lista de Compra
+- [ ] POST /api/lists?fromRecipe=[recipeId] (crear lista desde receta)
+- [ ] GET /api/recipes/[id]/ingredients/[ingredientId]/articles (obtener artículos para producto)
+- [ ] Frontend: Selector de artículos al convertir receta
+- [ ] Frontend: Ajuste de cantidades y porciones
+- [ ] Validaciones: todos los productos deben tener artículo seleccionado
+- [ ] Tests (pendiente)
 
 ---
 

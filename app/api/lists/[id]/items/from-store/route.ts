@@ -3,11 +3,11 @@ import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-const createItemSchema = z.object({
+const createItemFromStoreSchema = z.object({
   articleId: z.string().min(1, 'El artículo es requerido'),
+  storeId: z.string().min(1, 'El comercio es requerido'),
   quantity: z.number().positive('La cantidad debe ser positiva'),
   unit: z.string().optional(),
-  storeId: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -98,8 +98,8 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { articleId, quantity, unit, storeId, notes } =
-      createItemSchema.parse(body);
+    const { articleId, storeId, quantity, unit, notes } =
+      createItemFromStoreSchema.parse(body);
 
     // Verificar acceso al artículo
     const { hasAccess: hasArticleAccess, article } =
@@ -111,18 +111,40 @@ export async function POST(
       );
     }
 
-    // Verificar acceso al comercio si se proporciona
-    if (storeId) {
-      const { hasAccess: hasStoreAccess } = await hasAccessToStore(
-        user.id,
-        storeId
+    // Verificar acceso al comercio
+    const { hasAccess: hasStoreAccess } = await hasAccessToStore(
+      user.id,
+      storeId
+    );
+    if (!hasStoreAccess) {
+      return NextResponse.json(
+        { error: 'Comercio no encontrado o sin acceso' },
+        { status: 404 }
       );
-      if (!hasStoreAccess) {
-        return NextResponse.json(
-          { error: 'Comercio no encontrado o sin acceso' },
-          { status: 404 }
-        );
-      }
+    }
+
+    // Verificar que el artículo está disponible en el comercio
+    const articleStore = await prisma.articleStore.findUnique({
+      where: {
+        articleId_storeId: {
+          articleId,
+          storeId,
+        },
+      },
+    });
+
+    if (!articleStore) {
+      return NextResponse.json(
+        { error: 'El artículo no está disponible en este comercio' },
+        { status: 400 }
+      );
+    }
+
+    if (!articleStore.available) {
+      return NextResponse.json(
+        { error: 'El artículo no está disponible actualmente en este comercio' },
+        { status: 400 }
+      );
     }
 
     // Verificar unique constraint (un artículo solo una vez por lista)
@@ -145,9 +167,9 @@ export async function POST(
     const item = await prisma.item.create({
       data: {
         articleId,
+        storeId,
         quantity,
         unit: unit || 'unidades',
-        storeId: storeId || null,
         notes: notes || null,
         shoppingListId: id,
         addedById: user.id,
@@ -179,7 +201,13 @@ export async function POST(
       },
     });
 
-    return NextResponse.json({ item }, { status: 201 });
+    // Incluir precio sugerido del ArticleStore en la respuesta
+    const responseItem = {
+      ...item,
+      suggestedPrice: articleStore.price,
+    };
+
+    return NextResponse.json({ item: responseItem }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -199,13 +227,11 @@ export async function POST(
         { status: 400 }
       );
     }
-    console.error('Error in POST /api/lists/[id]/items:', error);
+    console.error('Error in POST /api/lists/[id]/items/from-store:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
     );
   }
 }
-
-
 

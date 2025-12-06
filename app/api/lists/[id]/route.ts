@@ -6,6 +6,10 @@ import { z } from 'zod';
 const updateListSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
+  status: z
+    .enum(['draft', 'active', 'completed', 'archived'])
+    .optional(),
+  isTemplate: z.boolean().optional(),
 });
 
 async function hasAccessToList(
@@ -60,6 +64,23 @@ export async function GET(
         },
         items: {
           include: {
+            article: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            store: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
             addedBy: {
               select: {
                 id: true,
@@ -116,20 +137,69 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Solo el owner puede actualizar nombre y descripción
+    // Solo el owner puede actualizar nombre, descripción, status e isTemplate
     const body = await request.json();
     const updateData = updateListSchema.parse(body);
 
-    if (!isOwner && (updateData.name || updateData.description)) {
+    if (
+      !isOwner &&
+      (updateData.name ||
+        updateData.description ||
+        updateData.status !== undefined ||
+        updateData.isTemplate !== undefined)
+    ) {
       return NextResponse.json(
-        { error: 'Only owner can update name and description' },
+        { error: 'Only owner can update name, description, status and template' },
         { status: 403 }
       );
     }
 
+    // Preparar datos para actualizar
+    const dataToUpdate: any = {};
+    if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
+    if (updateData.description !== undefined)
+      dataToUpdate.description = updateData.description;
+    if (updateData.isTemplate !== undefined)
+      dataToUpdate.isTemplate = updateData.isTemplate;
+
+    // Manejar cambio de status
+    if (updateData.status !== undefined) {
+      dataToUpdate.status = updateData.status;
+      dataToUpdate.statusDate = new Date();
+
+      // Si se marca como completada, calcular totalCost
+      if (updateData.status === 'completed') {
+        const items = await prisma.item.findMany({
+          where: {
+            shoppingListId: id,
+            checked: true,
+            price: { not: null },
+            purchasedQuantity: { not: null },
+          },
+        });
+
+        const totalCost = items.reduce((sum, item) => {
+          if (item.price && item.purchasedQuantity) {
+            return sum + item.price * item.purchasedQuantity;
+          }
+          return sum;
+        }, 0);
+
+        dataToUpdate.totalCost = totalCost > 0 ? totalCost : null;
+      } else {
+        // Si cambia de completed a otro estado, limpiar totalCost
+        const currentList = await prisma.shoppingList.findUnique({
+          where: { id },
+        });
+        if (currentList?.status === 'completed') {
+          dataToUpdate.totalCost = null;
+        }
+      }
+    }
+
     const list = await prisma.shoppingList.update({
       where: { id },
-      data: updateData,
+      data: dataToUpdate,
       include: {
         owner: {
           select: {
@@ -138,8 +208,44 @@ export async function PUT(
             email: true,
           },
         },
-        items: true,
-        shares: true,
+        items: {
+          include: {
+            article: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            store: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+            addedBy: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        shares: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
 

@@ -1,16 +1,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import ListItem from '@/components/ListItem';
 import ShareListModal from '@/components/ShareListModal';
 
-interface ListItemData {
+interface Article {
   id: string;
   name: string;
-  quantity?: string | null;
-  unit?: string | null;
+  brand: string;
+  variant?: string | null;
+  product: {
+    id: string;
+    name: string;
+  };
+}
+
+interface Store {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface ListItemData {
+  id: string;
+  articleId: string;
+  article: Article;
+  quantity: number;
+  unit: string;
   checked: boolean;
+  purchasedQuantity?: number | null;
+  price?: number | null;
+  purchasedAt?: string | null;
+  storeId?: string | null;
+  store?: Store | null;
   notes?: string | null;
   addedBy?: {
     id: string;
@@ -23,6 +46,10 @@ interface ShoppingList {
   name: string;
   description?: string | null;
   ownerId: string;
+  status: string;
+  totalCost?: number | null;
+  statusDate: string;
+  isTemplate: boolean;
   owner: {
     id: string;
     name: string;
@@ -48,16 +75,37 @@ export default function ListDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newItemName, setNewItemName] = useState('');
+  const [newItemArticleId, setNewItemArticleId] = useState('');
+  const [newItemStoreId, setNewItemStoreId] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('');
-  const [newItemUnit, setNewItemUnit] = useState('');
+  const [newItemUnit, setNewItemUnit] = useState('unidades');
   const [newItemNotes, setNewItemNotes] = useState('');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    email: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchList();
+    fetchArticles();
+    fetchStores();
   }, [listId]);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.user) {
+          setCurrentUser(data.user);
+        }
+      });
+  }, []);
 
   const fetchList = async () => {
     try {
@@ -75,9 +123,48 @@ export default function ListDetailPage() {
     }
   };
 
+  const fetchArticles = async () => {
+    setLoadingArticles(true);
+    try {
+      const res = await fetch('/api/articles?limit=100');
+      const data = await res.json();
+      if (res.ok) {
+        setArticles(data.articles || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar artículos:', err);
+    } finally {
+      setLoadingArticles(false);
+    }
+  };
+
+  const fetchStores = async () => {
+    try {
+      const res = await fetch('/api/stores?limit=100');
+      const data = await res.json();
+      if (res.ok) {
+        setStores(data.stores || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar comercios:', err);
+    }
+  };
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!newItemArticleId) {
+      setError('Debes seleccionar un artículo');
+      return;
+    }
+
+    const quantity = parseFloat(newItemQuantity);
+    if (!quantity || quantity <= 0) {
+      setError('La cantidad debe ser un número positivo');
+      return;
+    }
+
     setAdding(true);
 
     try {
@@ -85,9 +172,10 @@ export default function ListDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newItemName,
-          quantity: newItemQuantity || undefined,
-          unit: newItemUnit || undefined,
+          articleId: newItemArticleId,
+          quantity: quantity,
+          unit: newItemUnit || 'unidades',
+          storeId: newItemStoreId || undefined,
           notes: newItemNotes || undefined,
         }),
       });
@@ -100,9 +188,10 @@ export default function ListDetailPage() {
         return;
       }
 
-      setNewItemName('');
+      setNewItemArticleId('');
+      setNewItemStoreId('');
       setNewItemQuantity('');
-      setNewItemUnit('');
+      setNewItemUnit('unidades');
       setNewItemNotes('');
       setShowAddForm(false);
       fetchList();
@@ -112,15 +201,33 @@ export default function ListDetailPage() {
     }
   };
 
-  const handleUpdateItem = async (
-    itemId: string,
-    updates: Partial<ListItemData>
-  ) => {
+  const handleUpdateItem = async (itemId: string, updates: any) => {
     try {
+      // Convertir campos numéricos si están presentes como strings
+      const processedUpdates: any = { ...updates };
+      if (updates.quantity !== undefined) {
+        processedUpdates.quantity =
+          typeof updates.quantity === 'string'
+            ? parseFloat(updates.quantity)
+            : updates.quantity;
+      }
+      if (updates.purchasedQuantity !== undefined) {
+        processedUpdates.purchasedQuantity =
+          typeof updates.purchasedQuantity === 'string'
+            ? parseFloat(updates.purchasedQuantity) || null
+            : updates.purchasedQuantity;
+      }
+      if (updates.price !== undefined) {
+        processedUpdates.price =
+          typeof updates.price === 'string'
+            ? parseFloat(updates.price) || null
+            : updates.price;
+      }
+
       const res = await fetch(`/api/lists/${listId}/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(processedUpdates),
       });
 
       if (!res.ok) {
@@ -203,22 +310,6 @@ export default function ListDetailPage() {
     );
   }
 
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    email: string;
-    name: string;
-  } | null>(null);
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.user) {
-          setCurrentUser(data.user);
-        }
-      });
-  }, []);
-
   const isOwner = currentUser ? list.ownerId === currentUser.id : false;
   const userShare = list.shares.find(
     (s) => currentUser && s.user.id === currentUser.id
@@ -233,15 +324,59 @@ export default function ListDetailPage() {
           {list.description && (
             <p className="mt-1 text-gray-600">{list.description}</p>
           )}
+          <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
+            <span>
+              Estado: <span className="font-medium">{list.status}</span>
+            </span>
+            {list.totalCost !== null && list.totalCost !== undefined && (
+              <span>
+                Total: <span className="font-medium">€{list.totalCost.toFixed(2)}</span>
+              </span>
+            )}
+            {list.isTemplate && (
+              <span className="rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800">
+                Plantilla
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           {isOwner && (
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-            >
-              Compartir
-            </button>
+            <>
+              <select
+                value={list.status}
+                onChange={async (e) => {
+                  const newStatus = e.target.value;
+                  try {
+                    const res = await fetch(`/api/lists/${listId}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ status: newStatus }),
+                    });
+                    if (res.ok) {
+                      fetchList();
+                    } else {
+                      const data = await res.json();
+                      setError(data.error || 'Error al actualizar estado');
+                    }
+                  } catch (err) {
+                    setError('Error de conexión');
+                  }
+                }}
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              >
+                <option value="draft">Borrador</option>
+                <option value="active">Activa</option>
+                <option value="completed">Completada</option>
+                <option value="archived">Archivada</option>
+              </select>
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+              >
+                Compartir
+              </button>
+            </>
           )}
           {canEdit && (
             <button
@@ -268,20 +403,49 @@ export default function ListDetailPage() {
           <form onSubmit={handleAddItem} className="space-y-4">
             <div>
               <label
-                htmlFor="itemName"
+                htmlFor="itemArticle"
                 className="block text-sm font-medium text-gray-700"
               >
-                Nombre *
+                Artículo *
               </label>
-              <input
-                id="itemName"
-                type="text"
+              <select
+                id="itemArticle"
                 required
-                value={newItemName}
-                onChange={(e) => setNewItemName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                placeholder="Ej: Leche"
-              />
+                value={newItemArticleId}
+                onChange={(e) => setNewItemArticleId(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                disabled={loadingArticles}
+              >
+                <option value="">
+                  {loadingArticles ? 'Cargando...' : 'Selecciona un artículo'}
+                </option>
+                {articles.map((article) => (
+                  <option key={article.id} value={article.id}>
+                    {article.name} ({article.brand}) - {article.product.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="itemStore"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Comercio (opcional)
+              </label>
+              <select
+                id="itemStore"
+                value={newItemStoreId}
+                onChange={(e) => setNewItemStoreId(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              >
+                <option value="">Ninguno</option>
+                {stores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -289,11 +453,14 @@ export default function ListDetailPage() {
                   htmlFor="itemQuantity"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Cantidad
+                  Cantidad *
                 </label>
                 <input
                   id="itemQuantity"
-                  type="text"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
                   value={newItemQuantity}
                   onChange={(e) => setNewItemQuantity(e.target.value)}
                   className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
@@ -313,7 +480,7 @@ export default function ListDetailPage() {
                   value={newItemUnit}
                   onChange={(e) => setNewItemUnit(e.target.value)}
                   className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                  placeholder="litros"
+                  placeholder="unidades"
                 />
               </div>
             </div>
@@ -335,7 +502,7 @@ export default function ListDetailPage() {
             </div>
             <button
               type="submit"
-              disabled={adding}
+              disabled={adding || !newItemArticleId}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {adding ? 'Agregando...' : 'Agregar'}

@@ -22,6 +22,7 @@ model User {
   createdProducts Product[]           @relation("ProductCreator")
   createdArticles Article[]           @relation("ArticleCreator")
   createdStores   Store[]             @relation("StoreCreator")
+  createdRecipes  Recipe[]            @relation("RecipeCreator")
 
   @@index([email])
 }
@@ -40,6 +41,7 @@ model Product {
   articles     Article[]
   ingredients  ProductIngredient[]
   asIngredient Ingredient?
+  recipeIngredients RecipeIngredient[]
 
   @@index([name])
   @@index([isGeneral, createdById])
@@ -165,6 +167,8 @@ model ShoppingList {
   totalCost   Float?
   isTemplate  Boolean  @default(false)
   templateId  String? // Si fue creada desde plantilla
+  recipeId    String? // Si fue creada desde una receta
+  recipe      Recipe?  @relation(fields: [recipeId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -175,6 +179,7 @@ model ShoppingList {
   @@index([ownerId])
   @@index([status])
   @@index([isTemplate])
+  @@index([recipeId])
 }
 
 model Item {
@@ -215,4 +220,43 @@ model ShoppingListShare {
   @@unique([shoppingListId, userId])
   @@index([userId])
   @@index([shoppingListId])
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  instructions String?
+  servings    Int?
+  prepTime    Int?    // minutos
+  cookTime    Int?    // minutos
+  isGeneral   Boolean  @default(false)
+  createdById String?
+  createdBy   User?    @relation("RecipeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  ingredients RecipeIngredient[]
+  shoppingLists ShoppingList[]
+
+  @@index([name])
+  @@index([isGeneral, createdById])
+}
+
+model RecipeIngredient {
+  id          String   @id @default(cuid())
+  recipeId    String
+  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity    Float
+  unit        String   @default("unidades")
+  isOptional  Boolean  @default(false)
+  notes       String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([recipeId])
+  @@index([productId])
 }

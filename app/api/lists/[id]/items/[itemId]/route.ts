@@ -4,11 +4,18 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const updateItemSchema = z.object({
-  name: z.string().min(1).optional(),
-  quantity: z.string().optional(),
+  quantity: z.number().positive('La cantidad debe ser positiva').optional(),
   unit: z.string().optional(),
   checked: z.boolean().optional(),
-  notes: z.string().optional(),
+  purchasedQuantity: z
+    .number()
+    .nonnegative('La cantidad comprada no puede ser negativa')
+    .optional()
+    .nullable(),
+  price: z.number().positive('El precio debe ser positivo').optional().nullable(),
+  purchasedAt: z.string().datetime().optional().nullable(),
+  storeId: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 });
 
 async function hasAccessToList(
@@ -60,8 +67,11 @@ export async function PUT(
     }
 
     // Verificar que el item pertenece a la lista
-    const item = await prisma.listItem.findUnique({
+    const item = await prisma.item.findUnique({
       where: { id: itemId },
+      include: {
+        article: true,
+      },
     });
 
     if (!item || item.shoppingListId !== id) {
@@ -71,10 +81,64 @@ export async function PUT(
     const body = await request.json();
     const updateData = updateItemSchema.parse(body);
 
-    const updatedItem = await prisma.listItem.update({
+    // Validar purchasedQuantity <= quantity
+    if (
+      updateData.purchasedQuantity !== undefined &&
+      updateData.purchasedQuantity !== null
+    ) {
+      const quantityToCheck = updateData.quantity ?? item.quantity;
+      if (updateData.purchasedQuantity > quantityToCheck) {
+        return NextResponse.json(
+          {
+            error:
+              'La cantidad comprada no puede ser mayor que la cantidad solicitada',
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Si se marca como comprado y no hay purchasedAt, establecerlo automáticamente
+    if (updateData.checked === true && !updateData.purchasedAt) {
+      updateData.purchasedAt = new Date().toISOString();
+    }
+
+    // Preparar datos para actualizar
+    const dataToUpdate: any = {};
+    if (updateData.quantity !== undefined) dataToUpdate.quantity = updateData.quantity;
+    if (updateData.unit !== undefined) dataToUpdate.unit = updateData.unit;
+    if (updateData.checked !== undefined) dataToUpdate.checked = updateData.checked;
+    if (updateData.purchasedQuantity !== undefined)
+      dataToUpdate.purchasedQuantity = updateData.purchasedQuantity;
+    if (updateData.price !== undefined) dataToUpdate.price = updateData.price;
+    if (updateData.purchasedAt !== undefined)
+      dataToUpdate.purchasedAt = updateData.purchasedAt
+        ? new Date(updateData.purchasedAt)
+        : null;
+    if (updateData.storeId !== undefined) dataToUpdate.storeId = updateData.storeId;
+    if (updateData.notes !== undefined) dataToUpdate.notes = updateData.notes;
+
+    const updatedItem = await prisma.item.update({
       where: { id: itemId },
-      data: updateData,
+      data: dataToUpdate,
       include: {
+        article: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        store: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
         addedBy: {
           select: {
             id: true,
@@ -125,7 +189,7 @@ export async function DELETE(
     }
 
     // Verificar que el item pertenece a la lista
-    const item = await prisma.listItem.findUnique({
+    const item = await prisma.item.findUnique({
       where: { id: itemId },
     });
 
@@ -133,7 +197,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
 
-    await prisma.listItem.delete({
+    await prisma.item.delete({
       where: { id: itemId },
     });
 
