@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const type = searchParams.get('type'); // "private" | "shared" | "all"
+    const type = searchParams.get('type'); // "private" | "shared" | "all" | "from-recipes"
 
     // Construir condiciones base según el tipo
     let whereConditions: any = {};
@@ -44,6 +44,23 @@ export async function GET(request: NextRequest) {
           some: {
             userId: user.id,
           },
+        },
+      };
+    } else if (type === 'from-recipes') {
+      // Solo listas creadas desde recetas
+      whereConditions = {
+        OR: [
+          { ownerId: user.id },
+          {
+            shares: {
+              some: {
+                userId: user.id,
+              },
+            },
+          },
+        ],
+        recipeId: {
+          not: null,
         },
       };
     } else {

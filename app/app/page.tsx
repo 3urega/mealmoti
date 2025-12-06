@@ -11,6 +11,7 @@ interface ShoppingList {
   description?: string | null;
   ownerId: string;
   status: string;
+  recipeId?: string | null;
   items: Array<{ id: string; checked: boolean }>;
   owner: {
     id: string;
@@ -77,7 +78,7 @@ export default function DashboardPage() {
 
   // Calcular contadores de categorías
   const getCategoryCounts = () => {
-    if (!user) return { drafts: 0, active: 0, shared: 0, private: 0 };
+    if (!user) return { drafts: 0, active: 0, shared: 0, private: 0, fromRecipes: 0 };
 
     const drafts = lists.filter(
       (list) => list.status === 'draft' && list.ownerId === user.id
@@ -97,7 +98,11 @@ export default function DashboardPage() {
         (!list.shares || list.shares.length === 0)
     ).length;
 
-    return { drafts, active, shared, private: privateLists };
+    const fromRecipes = lists.filter(
+      (list) => list.recipeId !== null && list.recipeId !== undefined
+    ).length;
+
+    return { drafts, active, shared, private: privateLists, fromRecipes };
   };
 
   const categoryCounts = getCategoryCounts();
@@ -212,7 +217,7 @@ export default function DashboardPage() {
       )}
 
       <div className="mb-8">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           <CategoryCard
             title="Borradores"
             description="Listas en preparación"
@@ -297,6 +302,28 @@ export default function DashboardPage() {
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            }
+          />
+          <CategoryCard
+            title="Desde Recetas"
+            description="Listas creadas desde recetas"
+            count={categoryCounts.fromRecipes}
+            color="from-orange-500 to-orange-600"
+            href="/app/lists/category/from-recipes"
+            icon={
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
                 />
               </svg>
             }

@@ -58,6 +58,12 @@ const categoryConfig = {
     status: undefined,
     type: 'private',
   },
+  'from-recipes': {
+    title: 'Desde Recetas',
+    description: 'Listas creadas desde recetas',
+    status: undefined,
+    type: 'from-recipes',
+  },
 };
 
 export default function CategoryPage() {
@@ -161,6 +167,7 @@ export default function CategoryPage() {
             <option value="active">Activas</option>
             <option value="shared">Compartidas</option>
             <option value="private">Privadas</option>
+            <option value="from-recipes">Desde Recetas</option>
           </select>
         </div>
       </div>
