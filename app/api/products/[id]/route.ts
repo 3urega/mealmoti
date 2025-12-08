@@ -58,6 +58,8 @@ export async function GET(
             name: true,
             brand: true,
             variant: true,
+            suggestedPrice: true,
+            isGeneral: true,
           },
           orderBy: {
             name: 'asc',

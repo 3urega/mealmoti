@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ArticleModal from '@/components/ArticleModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface Product {
   id: string;
@@ -131,10 +132,8 @@ export default function ArticlesPage() {
     setOffset(0);
   };
 
-  const handleProductFilterChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    setProductFilter(e.target.value);
+  const handleProductFilterChange = (value: string) => {
+    setProductFilter(value);
     setOffset(0);
   };
 
@@ -263,19 +262,16 @@ export default function ArticlesPage() {
             >
               Filtrar por producto
             </label>
-            <select
-              id="productFilter"
-              value={productFilter}
-              onChange={handleProductFilterChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-            >
-              <option value="all">Todos</option>
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                </option>
-              ))}
-            </select>
+            <div className="mt-1">
+              <SearchableSelect
+                value={productFilter}
+                onChange={handleProductFilterChange}
+                placeholder="Buscar producto (mín. 3 caracteres)..."
+                searchEndpoint="/api/products/search"
+                minChars={3}
+                debounceMs={1000}
+              />
+            </div>
           </div>
           <div>
             <label
