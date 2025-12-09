@@ -57,6 +57,15 @@ export async function GET(
             description: true,
           },
         },
+        article: {
+          select: {
+            id: true,
+            name: true,
+            brand: true,
+            variant: true,
+            suggestedPrice: true,
+          },
+        },
       },
       orderBy: {
         order: 'asc',
@@ -136,6 +145,15 @@ export async function POST(
             id: true,
             name: true,
             description: true,
+          },
+        },
+        article: {
+          select: {
+            id: true,
+            name: true,
+            brand: true,
+            variant: true,
+            suggestedPrice: true,
           },
         },
       },

@@ -88,6 +88,7 @@ model Article {
   product        Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
   brand          String   @default("genérico") // Siempre tiene marca, por defecto "genérico"
   variant        String? // Variedad específica (ej: "5L", "integral")
+  weightInGrams  Float?   // Peso del producto contenido en gramos (ej: 500 para 500g)
   suggestedPrice Float?
   isGeneral      Boolean  @default(false) // false = particular, true = general
   createdById    String?
@@ -96,9 +97,10 @@ model Article {
   updatedAt      DateTime @updatedAt
 
   // Relaciones
-  items       Item[]
-  stores      ArticleStore[]
-  ingredients ArticleIngredient[]
+  items              Item[]
+  stores             ArticleStore[]
+  ingredients        ArticleIngredient[]
+  recipeIngredients  RecipeIngredient[]
 
   @@index([name])
   @@index([productId])
@@ -189,7 +191,9 @@ model Item {
   articleId         String
   article           Article      @relation(fields: [articleId], references: [id], onDelete: Restrict)
   quantity          Float
-  unit              String       @default("unidades")
+  unit              String?  // Temporal: se eliminará después de migración
+  unitId            String?
+  unitRelation      Unit?    @relation("ItemUnit", fields: [unitId], references: [id], onDelete: Restrict)
   purchasedQuantity Float?
   price             Float? // Precio de compra real
   checked           Boolean      @default(false)
@@ -205,6 +209,7 @@ model Item {
   @@unique([shoppingListId, articleId]) // Un artículo solo puede aparecer una vez por lista
   @@index([shoppingListId])
   @@index([articleId])
+  @@index([unitId])
   @@index([checked])
 }
 
@@ -222,26 +227,46 @@ model ShoppingListShare {
   @@index([shoppingListId])
 }
 
-model Recipe {
+model Unit {
   id          String   @id @default(cuid())
-  name        String
+  name        String   @unique
+  symbol      String   // Símbolo de la unidad (ej: "kg", "gr", "un")
   description String?
-  instructions String?
-  servings    Int?
-  prepTime    Int?    // minutos
-  cookTime    Int?    // minutos
-  isGeneral   Boolean  @default(false)
-  createdById String?
-  createdBy   User?    @relation("RecipeCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  ingredients RecipeIngredient[]
-  shoppingLists ShoppingList[]
+  recipeIngredients RecipeIngredient[] @relation("RecipeIngredientUnit")
+  items             Item[]             @relation("ItemUnit")
+
+  @@index([name])
+  @@index([symbol])
+}
+
+model Recipe {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  instructions    String?
+  servings        Int?
+  prepTime        Int?    // minutos
+  cookTime        Int?    // minutos
+  isGeneral       Boolean  @default(false)
+  createdById     String?
+  createdBy       User?    @relation("RecipeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  originalRecipeId String?
+  originalRecipe  Recipe?  @relation("RecipeCopy", fields: [originalRecipeId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relaciones
+  ingredients     RecipeIngredient[]
+  shoppingLists   ShoppingList[]
+  copiedRecipes   Recipe[] @relation("RecipeCopy")
 
   @@index([name])
   @@index([isGeneral, createdById])
+  @@index([originalRecipeId])
 }
 
 model RecipeIngredient {
@@ -250,8 +275,12 @@ model RecipeIngredient {
   recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   productId   String
   product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  articleId   String?
+  article     Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
   quantity    Float
-  unit        String   @default("unidades")
+  unit        String?  // Temporal: se eliminará después de migración
+  unitId      String?
+  unitRelation Unit?    @relation("RecipeIngredientUnit", fields: [unitId], references: [id], onDelete: Restrict)
   isOptional  Boolean  @default(false)
   notes       String?
   order       Int      @default(0)
@@ -259,4 +288,6 @@ model RecipeIngredient {
 
   @@index([recipeId])
   @@index([productId])
+  @@index([articleId])
+  @@index([unitId])
 }

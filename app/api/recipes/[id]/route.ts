@@ -60,6 +60,15 @@ export async function GET(
                 description: true,
               },
             },
+            article: {
+              select: {
+                id: true,
+                name: true,
+                brand: true,
+                variant: true,
+                suggestedPrice: true,
+              },
+            },
           },
           orderBy: {
             order: 'asc',
@@ -70,6 +79,12 @@ export async function GET(
             id: true,
             name: true,
             email: true,
+          },
+        },
+        originalRecipe: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -128,6 +143,15 @@ export async function PUT(
                 name: true,
               },
             },
+            article: {
+              select: {
+                id: true,
+                name: true,
+                brand: true,
+                variant: true,
+                suggestedPrice: true,
+              },
+            },
           },
           orderBy: {
             order: 'asc',
@@ -138,6 +162,12 @@ export async function PUT(
             id: true,
             name: true,
             email: true,
+          },
+        },
+        originalRecipe: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },

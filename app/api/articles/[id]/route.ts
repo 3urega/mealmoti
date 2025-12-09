@@ -8,6 +8,7 @@ const updateArticleSchema = z.object({
   productId: z.string().optional(),
   brand: z.string().min(1, 'La marca es requerida').optional(),
   variant: z.string().optional(),
+  weightInGrams: z.number().positive('El peso debe ser positivo').optional().nullable(),
   suggestedPrice: z.number().positive('El precio debe ser positivo').optional().nullable(),
   isGeneral: z.boolean().optional(),
 });
@@ -109,6 +110,7 @@ export async function GET(
       product: article.product,
       brand: article.brand,
       variant: article.variant,
+      weightInGrams: article.weightInGrams,
       suggestedPrice: article.suggestedPrice,
       isGeneral: article.isGeneral,
       createdById: article.createdById,
@@ -236,6 +238,9 @@ export async function PUT(
     }
     if (validatedData.variant !== undefined) {
       updateData.variant = validatedData.variant.trim() || null;
+    }
+    if (validatedData.weightInGrams !== undefined) {
+      updateData.weightInGrams = validatedData.weightInGrams;
     }
     if (validatedData.suggestedPrice !== undefined) {
       updateData.suggestedPrice = validatedData.suggestedPrice;

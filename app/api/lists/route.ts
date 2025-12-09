@@ -190,6 +190,13 @@ export async function POST(request: NextRequest) {
           ingredients: {
             include: {
               product: true,
+              article: {
+                select: {
+                  id: true,
+                  name: true,
+                  brand: true,
+                },
+              },
             },
             orderBy: {
               order: 'asc',
@@ -213,21 +220,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Validar que todos los ingredientes tienen artículo seleccionado
-      if (!ingredientSelections) {
-        return NextResponse.json(
-          { error: 'Debes seleccionar artículos para todos los ingredientes' },
-          { status: 400 }
-        );
-      }
-
       const recipeServings = servings || recipe.servings || 1;
       const baseServings = recipe.servings || 1;
       const multiplier = recipeServings / baseServings;
 
       for (const ingredient of recipe.ingredients) {
-        const selection = ingredientSelections[ingredient.id];
-        if (!selection || !selection.articleId) {
+        // Usar selección manual si existe, sino usar artículo preseleccionado
+        const selection = ingredientSelections?.[ingredient.id];
+        const articleIdToUse = selection?.articleId || ingredient.articleId;
+
+        if (!articleIdToUse) {
           return NextResponse.json(
             { error: `Debes seleccionar un artículo para: ${ingredient.product.name}` },
             { status: 400 }
@@ -236,12 +238,12 @@ export async function POST(request: NextRequest) {
 
         // Verificar que el artículo existe y es accesible
         const article = await prisma.article.findUnique({
-          where: { id: selection.articleId },
+          where: { id: articleIdToUse },
         });
 
         if (!article) {
           return NextResponse.json(
-            { error: `Artículo no encontrado: ${selection.articleId}` },
+            { error: `Artículo no encontrado: ${articleIdToUse}` },
             { status: 404 }
           );
         }
@@ -262,9 +264,9 @@ export async function POST(request: NextRequest) {
         }
 
         recipeItems.push({
-          articleId: selection.articleId,
-          quantity: (selection.quantity || ingredient.quantity) * multiplier,
-          unit: selection.unit || ingredient.unit,
+          articleId: articleIdToUse,
+          quantity: (selection?.quantity || ingredient.quantity) * multiplier,
+          unit: selection?.unit || ingredient.unit,
           notes: ingredient.notes,
           addedById: user.id,
         });

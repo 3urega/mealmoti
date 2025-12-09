@@ -6,6 +6,42 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed de base de datos...\n');
 
+  // Crear unidades base
+  const unitKg = await prisma.unit.upsert({
+    where: { id: 'unit-kg' },
+    update: {},
+    create: {
+      id: 'unit-kg',
+      name: 'kilogramos',
+      symbol: 'kg',
+      description: 'Kilogramos',
+    },
+  });
+
+  const unitUnidades = await prisma.unit.upsert({
+    where: { id: 'unit-unidades' },
+    update: {},
+    create: {
+      id: 'unit-unidades',
+      name: 'unidades',
+      symbol: 'un',
+      description: 'Unidades o piezas',
+    },
+  });
+
+  const unitGr = await prisma.unit.upsert({
+    where: { id: 'unit-gr' },
+    update: {},
+    create: {
+      id: 'unit-gr',
+      name: 'gramos',
+      symbol: 'gr',
+      description: 'Gramos',
+    },
+  });
+
+  console.log('✅ Unidades creadas:', [unitKg.symbol, unitUnidades.symbol, unitGr.symbol].join(', '));
+
   // Crear usuario de prueba
   const hashedPassword = await hashPassword('password123');
   
@@ -149,14 +185,14 @@ async function main() {
             {
               articleId: articleLeche.id,
               quantity: 2,
-              unit: 'litros',
+              unitId: unitUnidades.id, // 2 unidades de leche
               checked: false,
               addedById: user.id,
             },
             {
               articleId: articlePan.id,
               quantity: 1,
-              unit: 'unidad',
+              unitId: unitUnidades.id,
               checked: true,
               price: 0.95,
               purchasedQuantity: 1,
@@ -165,14 +201,14 @@ async function main() {
             {
               articleId: articleHuevos.id,
               quantity: 12,
-              unit: 'unidades',
+              unitId: unitUnidades.id,
               checked: false,
               addedById: user.id,
             },
             {
               articleId: articleTomates.id,
               quantity: 500,
-              unit: 'g',
+              unitId: unitGr.id,
               checked: false,
               notes: 'Bien maduros',
               addedById: user.id,
