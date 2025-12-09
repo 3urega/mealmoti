@@ -77,7 +77,6 @@ export async function GET(request: NextRequest) {
         name: true,
         brand: true,
         variant: true,
-        weightInGrams: true,
         suggestedPrice: true,
         isGeneral: true,
         createdById: true,
@@ -182,17 +181,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear artículo
+    const articleData: any = {
+      name: validatedData.name.trim(),
+      productId: validatedData.productId,
+      brand: validatedData.brand.trim() || 'genérico',
+      variant: validatedData.variant?.trim() || null,
+      suggestedPrice: validatedData.suggestedPrice || null,
+      isGeneral: validatedData.isGeneral,
+      createdById: validatedData.isGeneral ? null : user.id,
+    };
+    
+    if (validatedData.weightInGrams !== undefined) {
+      articleData.weightInGrams = validatedData.weightInGrams;
+    }
+    
     const article = await prisma.article.create({
-      data: {
-        name: validatedData.name.trim(),
-        productId: validatedData.productId,
-        brand: validatedData.brand.trim() || 'genérico',
-        variant: validatedData.variant?.trim() || null,
-        weightInGrams: validatedData.weightInGrams || null,
-        suggestedPrice: validatedData.suggestedPrice || null,
-        isGeneral: validatedData.isGeneral,
-        createdById: validatedData.isGeneral ? null : user.id,
-      },
+      data: articleData,
       include: {
         product: {
           select: {
