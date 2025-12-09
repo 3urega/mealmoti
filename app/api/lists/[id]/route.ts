@@ -87,7 +87,7 @@ export async function GET(
                 name: true,
               },
             },
-            unit: {
+            unitRelation: {
               select: {
                 id: true,
                 name: true,
@@ -238,6 +238,13 @@ export async function PUT(
               select: {
                 id: true,
                 name: true,
+              },
+            },
+            unitRelation: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
               },
             },
           },

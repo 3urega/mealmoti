@@ -145,7 +145,7 @@ export async function PUT(
             name: true,
           },
         },
-        unit: {
+        unitRelation: {
           select: {
             id: true,
             name: true,
