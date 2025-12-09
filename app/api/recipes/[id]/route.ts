@@ -69,7 +69,7 @@ export async function GET(
                 suggestedPrice: true,
               },
             },
-            unit: {
+            unitRelation: {
               select: {
                 id: true,
                 name: true,
@@ -159,7 +159,7 @@ export async function PUT(
                 suggestedPrice: true,
               },
             },
-            unit: {
+            unitRelation: {
               select: {
                 id: true,
                 name: true,

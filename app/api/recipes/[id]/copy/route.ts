@@ -111,7 +111,7 @@ export async function POST(
                 brand: true,
               },
             },
-            unit: {
+            unitRelation: {
               select: {
                 id: true,
                 name: true,
