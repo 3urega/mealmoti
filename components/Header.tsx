@@ -59,6 +59,12 @@ export default function Header() {
                   Mi App
                 </Link>
                 <Link
+                  href="/app/dashboard"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Dashboard
+                </Link>
+                <Link
                   href="/app/ingredients"
                   className="text-sm font-medium text-gray-700 hover:text-gray-900"
                 >
