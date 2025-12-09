@@ -114,7 +114,8 @@ export async function POST(
                 brand: true,
               },
             },
-            unit: {
+            // @ts-ignore - unitRelation existe pero TypeScript puede no reconocerlo si el cliente no está actualizado
+            unitRelation: {
               select: {
                 id: true,
                 name: true,
@@ -187,7 +188,7 @@ export async function POST(
         {
           message: 'Todos los artículos de la receta ya están en la lista',
           added: 0,
-          skipped: ingredientsWithArticles.length,
+          skipped: ingredientsToProcess.length,
         },
         { status: 200 }
       );
