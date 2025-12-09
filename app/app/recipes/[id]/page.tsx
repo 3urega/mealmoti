@@ -232,13 +232,14 @@ export default function RecipeDetailPage() {
 
       if (!res.ok) {
         setError(data.error || 'Error al agregar ingrediente');
-        return;
+        throw new Error(data.error || 'Error al agregar ingrediente');
       }
 
       // Recargar la receta
-      fetchRecipe();
+      await fetchRecipe();
     } catch (err) {
       setError('Error de conexión');
+      throw err;
     }
   };
 
@@ -262,13 +263,14 @@ export default function RecipeDetailPage() {
 
       if (!res.ok) {
         setError(data.error || 'Error al actualizar ingrediente');
-        return;
+        throw new Error(data.error || 'Error al actualizar ingrediente');
       }
 
       // Recargar la receta
-      fetchRecipe();
+      await fetchRecipe();
     } catch (err) {
       setError('Error de conexión');
+      throw err;
     }
   };
 
@@ -1363,7 +1365,7 @@ function IngredientForm({
   units,
   showToast,
 }: {
-  onSave: (productId: string, quantity: string, unitId: string, isOptional: boolean, notes: string) => void;
+  onSave: (productId: string, quantity: string, unitId: string, isOptional: boolean, notes: string) => Promise<void>;
   buttonText: string;
   initialValues?: {
     productId?: string;
@@ -1376,32 +1378,49 @@ function IngredientForm({
   showToast: (type: 'success' | 'error' | 'warning' | 'info', message: string, duration?: number) => void;
 }) {
   const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [productId, setProductId] = useState(initialValues?.productId || 'all');
   const [quantity, setQuantity] = useState(initialValues?.quantity?.toString() || '');
   const [unitId, setUnitId] = useState(initialValues?.unitId || units.find(u => u.symbol === 'un')?.id || units[0]?.id || '');
   const [isOptional, setIsOptional] = useState(initialValues?.isOptional || false);
   const [notes, setNotes] = useState(initialValues?.notes || '');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Resetear estado cuando se abre el formulario
+  useEffect(() => {
+    if (showForm) {
+      setSaving(false);
+    }
+  }, [showForm]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productId || productId === 'all' || !quantity || !unitId) {
       showToast('error', 'Por favor, selecciona un producto, ingresa una cantidad y selecciona una unidad');
       return;
     }
-    onSave(productId, quantity, unitId, isOptional, notes);
-    setProductId('all');
-    setQuantity('');
-    setUnitId(units.find(u => u.symbol === 'un')?.id || units[0]?.id || '');
-    setIsOptional(false);
-    setNotes('');
-    setShowForm(false);
+    
+    setSaving(true);
+    try {
+      await onSave(productId, quantity, unitId, isOptional, notes);
+      setProductId('all');
+      setQuantity('');
+      setUnitId(units.find(u => u.symbol === 'un')?.id || units[0]?.id || '');
+      setIsOptional(false);
+      setNotes('');
+      setShowForm(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!showForm) {
     return (
       <button
         type="button"
-        onClick={() => setShowForm(true)}
+        onClick={() => {
+          setSaving(false);
+          setShowForm(true);
+        }}
         className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
       >
         {buttonText}
@@ -1482,9 +1501,10 @@ function IngredientForm({
         </button>
         <button
           type="submit"
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+          disabled={saving}
+          className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Guardar
+          {saving ? 'Guardando...' : 'Guardar'}
         </button>
       </div>
     </form>
@@ -1500,25 +1520,38 @@ function IngredientRow({
   showToast,
 }: {
   ingredient: RecipeIngredient;
-  onUpdate: (productId: string, quantity: string, unitId: string, isOptional: boolean, notes: string) => void;
+  onUpdate: (productId: string, quantity: string, unitId: string, isOptional: boolean, notes: string) => Promise<void>;
   onDelete: () => void;
   units: Array<{ id: string; name: string; symbol: string }>;
   showToast: (type: 'success' | 'error' | 'warning' | 'info', message: string, duration?: number) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [productId, setProductId] = useState(ingredient.product.id);
   const [quantity, setQuantity] = useState(ingredient.quantity.toString());
   const [unitId, setUnitId] = useState(ingredient.unitId || units.find(u => u.symbol === 'un')?.id || units[0]?.id || '');
   const [isOptional, setIsOptional] = useState(ingredient.isOptional);
   const [notes, setNotes] = useState(ingredient.notes || '');
 
-  const handleSave = () => {
+  // Resetear estado cuando se abre el formulario de edición
+  useEffect(() => {
+    if (isEditing) {
+      setSaving(false);
+    }
+  }, [isEditing]);
+
+  const handleSave = async () => {
     if (!productId || productId === 'all' || !quantity || !unitId) {
       showToast('error', 'Por favor, selecciona un producto, ingresa una cantidad y selecciona una unidad');
       return;
     }
-    onUpdate(productId, quantity, unitId, isOptional, notes);
-    setIsEditing(false);
+    setSaving(true);
+    try {
+      await onUpdate(productId, quantity, unitId, isOptional, notes);
+      setIsEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (isEditing) {
@@ -1589,16 +1622,18 @@ function IngredientRow({
           <button
             type="button"
             onClick={() => setIsEditing(false)}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            disabled={saving}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+            disabled={saving}
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Guardar
+            {saving ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
       </div>

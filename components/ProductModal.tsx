@@ -46,6 +46,7 @@ export default function ProductModal({
       }
       setError('');
       setFieldErrors({});
+      setSaving(false);
     }
   }, [isOpen, product]);
 
@@ -108,6 +109,7 @@ export default function ProductModal({
       }
 
       onSuccess();
+      setSaving(false);
     } catch (err) {
       setError('Error de conexión');
       setSaving(false);
