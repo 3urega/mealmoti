@@ -55,18 +55,7 @@ export async function GET(
     // Obtener artículo con todas sus relaciones
     const article = await prisma.article.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        brand: true,
-        variant: true,
-        weightInGrams: true,
-        suggestedPrice: true,
-        isGeneral: true,
-        createdById: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
         product: {
           select: {
             id: true,
