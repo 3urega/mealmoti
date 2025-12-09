@@ -1303,8 +1303,8 @@ export default function RecipeDetailPage() {
                   Ingredientes
                 </h3>
                 <IngredientForm
-                  onSave={(productId, quantity, unitId, isOptional, notes) => {
-                    handleAddIngredient(productId, parseFloat(quantity), unitId, isOptional, notes);
+                  onSave={async (productId, quantity, unitId, isOptional, notes) => {
+                    await handleAddIngredient(productId, parseFloat(quantity), unitId, isOptional, notes);
                   }}
                   buttonText="Agregar Ingrediente"
                   units={units}
