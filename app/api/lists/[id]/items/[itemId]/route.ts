@@ -145,6 +145,7 @@ export async function PUT(
             name: true,
           },
         },
+        // @ts-ignore - unitRelation existe pero TypeScript puede no reconocerlo si el cliente no está actualizado
         unitRelation: {
           select: {
             id: true,
