@@ -341,13 +341,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Si hay items de receta, crearlos
+    // Si hay items de receta, crearlos con precios
     if (recipeItems.length > 0) {
+      // Obtener precios de los artículos
+      const articleIds = recipeItems.map((item) => item.articleId);
+      const articles = await prisma.article.findMany({
+        where: { id: { in: articleIds } },
+        select: { id: true, suggestedPrice: true },
+      });
+      const priceMap = new Map(
+        articles.map((a) => [a.id, a.suggestedPrice])
+      );
+
       await prisma.item.createMany({
         data: recipeItems.map((item: typeof recipeItems[0]) => ({
           articleId: item.articleId,
           quantity: item.quantity,
           unitId: item.unitId,
+          price: priceMap.get(item.articleId) || null,
           notes: item.notes,
           shoppingListId: list.id,
           addedById: item.addedById,
@@ -355,18 +366,48 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Si hay items de plantilla, copiarlos
+    // Si hay items de plantilla, copiarlos con precios
     if (templateItems.length > 0) {
+      // Obtener precios de ArticleStore para items con storeId, o suggestedPrice como fallback
+      const itemsWithPrices = await Promise.all(
+        templateItems.map(async (item) => {
+          let itemPrice: number | null = null;
+
+          if (item.storeId) {
+            // Buscar precio en ArticleStore
+            const articleStore = await prisma.articleStore.findUnique({
+              where: {
+                articleId_storeId: {
+                  articleId: item.articleId,
+                  storeId: item.storeId,
+                },
+              },
+            });
+            if (articleStore?.price) {
+              itemPrice = articleStore.price;
+            }
+          }
+
+          // Si no hay precio de tienda, usar suggestedPrice
+          if (itemPrice === null && item.article?.suggestedPrice) {
+            itemPrice = item.article.suggestedPrice;
+          }
+
+          return {
+            articleId: item.articleId,
+            quantity: item.quantity,
+            unitId: item.unitId,
+            storeId: item.storeId,
+            price: itemPrice,
+            notes: item.notes,
+            shoppingListId: list.id,
+            addedById: user.id,
+          };
+        })
+      );
+
       await prisma.item.createMany({
-        data: templateItems.map((item: typeof templateItems[0]) => ({
-          articleId: item.articleId,
-          quantity: item.quantity,
-          unitId: item.unitId,
-          storeId: item.storeId,
-          notes: item.notes,
-          shoppingListId: list.id,
-          addedById: user.id,
-        })),
+        data: itemsWithPrices,
       });
 
       // Recargar la lista con los items

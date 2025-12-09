@@ -218,74 +218,81 @@ export default function ListItem({
         disabled={!canEdit}
         className="mt-1 h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
       />
-      <div className="flex-1">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-sm font-medium ${
-                  checked ? 'line-through text-gray-500' : 'text-gray-900'
-                }`}
-              >
-                {article.name}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className={`text-sm font-medium whitespace-nowrap ${
+              checked ? 'line-through text-gray-500' : 'text-gray-900'
+            }`}
+          >
+            {article.name}
+          </span>
+          <span className="text-xs text-gray-500 whitespace-nowrap">
+            ({article.brand})
+          </span>
+          <span className="text-xs text-gray-500 whitespace-nowrap">
+            {article.product.name}
+          </span>
+          <span className="text-sm text-gray-600 whitespace-nowrap">
+            {quantity} {unit}
+          </span>
+          {purchasedQuantity !== null &&
+            purchasedQuantity !== undefined &&
+            purchasedQuantity > 0 && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">
+                Comprado: {purchasedQuantity} {unit}
               </span>
-              <span className="text-xs text-gray-500">({article.brand})</span>
-            </div>
-            <div className="mt-1 text-xs text-gray-500">
-              {article.product.name}
-            </div>
-            <div className="mt-1 text-sm text-gray-600">
-              {quantity} {unit}
-              {purchasedQuantity !== null &&
-                purchasedQuantity !== undefined &&
-                purchasedQuantity > 0 && (
-                  <span className="ml-2 text-gray-500">
-                    (Comprado: {purchasedQuantity} {unit})
-                  </span>
-                )}
-            </div>
-            {price !== null && price !== undefined && price > 0 && (
-              <div className="mt-1 text-sm font-medium text-green-600">
-                €{price.toFixed(2)}
-                {purchasedQuantity &&
-                  purchasedQuantity > 0 &&
-                  ` (Total: €${(price * purchasedQuantity).toFixed(2)})`}
-              </div>
             )}
-            {store && (
-              <div className="mt-1 text-xs text-gray-500">
-                Comercio: {store.name}
-              </div>
-            )}
-            {purchasedAt && (
-              <div className="mt-1 text-xs text-gray-400">
-                Comprado: {new Date(purchasedAt).toLocaleDateString()}
-              </div>
-            )}
-          </div>
+          {price !== null && price !== undefined && price > 0 && (
+            <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded whitespace-nowrap">
+              €{price.toFixed(2)}
+              {purchasedQuantity &&
+                purchasedQuantity > 0 &&
+                ` × ${purchasedQuantity} = €${(price * purchasedQuantity).toFixed(2)}`}
+            </span>
+          )}
+          {price === null || price === undefined || price === 0 ? (
+            <span className="text-xs text-gray-400 italic whitespace-nowrap">
+              Sin precio
+            </span>
+          ) : null}
+          {store && (
+            <span className="text-xs text-gray-500 whitespace-nowrap">
+              🏪 {store.name}
+            </span>
+          )}
+          {purchasedAt && (
+            <span className="text-xs text-gray-400 whitespace-nowrap">
+              📅 {new Date(purchasedAt).toLocaleDateString()}
+            </span>
+          )}
+          {notes && (
+            <span className="text-xs text-gray-500 italic whitespace-nowrap truncate max-w-xs" title={notes}>
+              📝 {notes}
+            </span>
+          )}
+          {addedBy && (
+            <span className="text-xs text-gray-400 whitespace-nowrap">
+              👤 {addedBy.name}
+            </span>
+          )}
           {canEdit && (
-            <div className="flex gap-1">
+            <div className="flex gap-1 ml-auto">
               <button
                 onClick={() => setIsEditing(true)}
-                className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 whitespace-nowrap"
               >
                 Editar
               </button>
               <button
                 onClick={handleDelete}
-                className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 whitespace-nowrap"
               >
                 Eliminar
               </button>
             </div>
           )}
         </div>
-        {notes && <p className="mt-1 text-xs text-gray-500">{notes}</p>}
-        {addedBy && (
-          <p className="mt-1 text-xs text-gray-400">
-            Agregado por {addedBy.name}
-          </p>
-        )}
       </div>
     </div>
   );

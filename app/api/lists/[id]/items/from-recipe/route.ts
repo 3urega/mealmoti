@@ -231,21 +231,47 @@ export async function POST(
     }
 
     // Crear items para los ingredientes que no están en la lista
-    const itemsToCreate = ingredientsToAdd.map((ingredient) => {
+    // Primero obtener los artículos con sus precios
+    const articleIdsToFetch = ingredientsToAdd.map((ingredient) => {
       const selection = ingredientSelections?.[ingredient.id];
-      const articleIdToUse = selection?.articleId || ingredient.articleId!;
-      const quantityToUse = (selection?.quantity || ingredient.quantity) * multiplier;
-      const unitIdToUse = selection?.unitId || ingredient.unitId;
-
-      return {
-        articleId: articleIdToUse,
-        quantity: quantityToUse,
-        unitId: unitIdToUse,
-        notes: ingredient.notes,
-        shoppingListId: listId,
-        addedById: user.id,
-      };
+      return selection?.articleId || ingredient.articleId!;
     });
+
+    const articlesWithPrices = await prisma.article.findMany({
+      where: {
+        id: { in: articleIdsToFetch },
+      },
+      select: {
+        id: true,
+        suggestedPrice: true,
+      },
+    });
+
+    const articlePriceMap = new Map(
+      articlesWithPrices.map((a) => [a.id, a.suggestedPrice])
+    );
+
+    const itemsToCreate = await Promise.all(
+      ingredientsToAdd.map(async (ingredient) => {
+        const selection = ingredientSelections?.[ingredient.id];
+        const articleIdToUse = selection?.articleId || ingredient.articleId!;
+        const quantityToUse = (selection?.quantity || ingredient.quantity) * multiplier;
+        const unitIdToUse = selection?.unitId || ingredient.unitId;
+
+        // Obtener precio del artículo
+        let itemPrice: number | null = articlePriceMap.get(articleIdToUse) || null;
+
+        return {
+          articleId: articleIdToUse,
+          quantity: quantityToUse,
+          unitId: unitIdToUse,
+          price: itemPrice,
+          notes: ingredient.notes,
+          shoppingListId: listId,
+          addedById: user.id,
+        };
+      })
+    );
 
     const createdItems = await prisma.item.createMany({
       data: itemsToCreate,

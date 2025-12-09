@@ -168,7 +168,7 @@ export async function POST(
     let finalUnitId = unitId;
     if (!finalUnitId) {
       const defaultUnit = await prisma.unit.findUnique({
-        where: { symbol: 'un' },
+        where: { name: 'unidades' },
       });
       if (!defaultUnit) {
         return NextResponse.json(
@@ -179,12 +179,36 @@ export async function POST(
       finalUnitId = defaultUnit.id;
     }
 
+    // Obtener precio del artículo desde ArticleStore (ya que viene de una tienda)
+    let itemPrice: number | null = null;
+    const articleStore = await prisma.articleStore.findUnique({
+      where: {
+        articleId_storeId: {
+          articleId,
+          storeId,
+        },
+      },
+    });
+    if (articleStore?.price) {
+      itemPrice = articleStore.price;
+    } else {
+      // Si no hay precio en ArticleStore, usar suggestedPrice del artículo
+      const article = await prisma.article.findUnique({
+        where: { id: articleId },
+        select: { suggestedPrice: true },
+      });
+      if (article?.suggestedPrice) {
+        itemPrice = article.suggestedPrice;
+      }
+    }
+
     const item = await prisma.item.create({
       data: {
         articleId,
         storeId,
         quantity,
         unitId: finalUnitId,
+        price: itemPrice,
         notes: notes || null,
         shoppingListId: id,
         addedById: user.id,

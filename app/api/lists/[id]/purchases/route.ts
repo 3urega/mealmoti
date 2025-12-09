@@ -73,7 +73,7 @@ export async function POST(
             },
           },
         },
-        unit: {
+        unitRelation: {
           select: {
             id: true,
             name: true,
