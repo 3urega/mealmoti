@@ -55,18 +55,7 @@ export async function GET(
     // Obtener artículo con todas sus relaciones
     const article = await prisma.article.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        brand: true,
-        variant: true,
-        weightInGrams: true,
-        suggestedPrice: true,
-        isGeneral: true,
-        createdById: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
         product: {
           select: {
             id: true,
@@ -114,6 +103,9 @@ export async function GET(
     }
 
     // Formatear respuesta
+    // Type assertion necesario porque el cliente de Prisma puede tener tipos cacheados
+    const articleWithWeight = article as typeof article & { weightInGrams: number | null };
+    
     const formattedArticle = {
       id: article.id,
       name: article.name,
@@ -121,7 +113,7 @@ export async function GET(
       product: article.product,
       brand: article.brand,
       variant: article.variant,
-      weightInGrams: article.weightInGrams,
+      weightInGrams: articleWithWeight.weightInGrams ?? null,
       suggestedPrice: article.suggestedPrice,
       isGeneral: article.isGeneral,
       createdById: article.createdById,
