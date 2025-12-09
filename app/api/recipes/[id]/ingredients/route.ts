@@ -6,7 +6,7 @@ import { z } from 'zod';
 const createIngredientSchema = z.object({
   productId: z.string().min(1, 'El producto es requerido'),
   quantity: z.number().positive('La cantidad debe ser positiva'),
-  unit: z.string().min(1, 'La unidad es requerida'),
+  unitId: z.string().min(1, 'La unidad es requerida'),
   isOptional: z.boolean().optional().default(false),
   notes: z.string().optional(),
   order: z.number().int().optional().default(0),
@@ -66,6 +66,13 @@ export async function GET(
             suggestedPrice: true,
           },
         },
+        unit: {
+          select: {
+            id: true,
+            name: true,
+            symbol: true,
+          },
+        },
       },
       orderBy: {
         order: 'asc',
@@ -107,7 +114,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { productId, quantity, unit, isOptional, notes, order } =
+    const { productId, quantity, unitId, isOptional, notes, order } =
       createIngredientSchema.parse(body);
 
     // Verificar que el producto existe y es accesible
@@ -134,7 +141,7 @@ export async function POST(
         recipeId: id,
         productId,
         quantity,
-        unit,
+        unitId,
         isOptional: isOptional ?? false,
         notes,
         order: order ?? 0,
@@ -154,6 +161,13 @@ export async function POST(
             brand: true,
             variant: true,
             suggestedPrice: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            name: true,
+            symbol: true,
           },
         },
       },

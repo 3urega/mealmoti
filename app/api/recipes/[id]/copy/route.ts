@@ -87,7 +87,7 @@ export async function POST(
           create: originalRecipe.ingredients.map((ingredient) => ({
             productId: ingredient.productId,
             quantity: ingredient.quantity,
-            unit: ingredient.unit,
+            unitId: ingredient.unitId,
             isOptional: ingredient.isOptional,
             notes: ingredient.notes,
             order: ingredient.order,
@@ -109,6 +109,13 @@ export async function POST(
                 id: true,
                 name: true,
                 brand: true,
+              },
+            },
+            unit: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
               },
             },
           },

@@ -69,6 +69,13 @@ export async function GET(
                 suggestedPrice: true,
               },
             },
+            unit: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
+              },
+            },
           },
           orderBy: {
             order: 'asc',
@@ -150,6 +157,13 @@ export async function PUT(
                 brand: true,
                 variant: true,
                 suggestedPrice: true,
+              },
+            },
+            unit: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
               },
             },
           },

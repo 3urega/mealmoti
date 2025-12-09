@@ -6,6 +6,11 @@ import { z } from 'zod';
 const addFromRecipeSchema = z.object({
   recipeId: z.string().min(1, 'El ID de la receta es requerido'),
   servings: z.number().int().positive().optional(),
+  ingredientSelections: z.record(z.string(), z.object({
+    articleId: z.string().min(1),
+    quantity: z.number().positive().optional(),
+    unitId: z.string().optional(),
+  })).optional(),
 });
 
 async function hasAccessToList(
@@ -75,7 +80,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { recipeId, servings } = addFromRecipeSchema.parse(body);
+    const { recipeId, servings, ingredientSelections } = addFromRecipeSchema.parse(body);
 
     // Verificar acceso a la receta
     const { hasAccess: hasRecipeAccess } = await hasAccessToRecipe(
@@ -109,6 +114,13 @@ export async function POST(
                 brand: true,
               },
             },
+            unit: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
+              },
+            },
           },
           orderBy: {
             order: 'asc',
@@ -124,26 +136,34 @@ export async function POST(
       );
     }
 
-    // Filtrar ingredientes que tienen artículo asociado
-    const ingredientsWithArticles = recipe.ingredients.filter(
-      (ing) => ing.articleId
-    );
+    // Usar selecciones manuales si existen, sino usar artículos preseleccionados
+    const ingredientsToProcess = recipe.ingredients.filter((ingredient) => {
+      const selection = ingredientSelections?.[ingredient.id];
+      const articleIdToUse = selection?.articleId || ingredient.articleId;
+      return !!articleIdToUse;
+    });
 
-    if (ingredientsWithArticles.length === 0) {
+    if (ingredientsToProcess.length === 0) {
       return NextResponse.json(
         {
-          error: 'La receta no tiene artículos asociados. Asocia artículos primero.',
+          error: 'Debes seleccionar al menos un artículo para los ingredientes.',
         },
         { status: 400 }
       );
     }
+
+    // Preparar lista de artículos a verificar (con selecciones manuales o preseleccionados)
+    const articleIdsToCheck = ingredientsToProcess.map((ingredient) => {
+      const selection = ingredientSelections?.[ingredient.id];
+      return selection?.articleId || ingredient.articleId!;
+    });
 
     // Obtener artículos que ya están en la lista
     const existingItems = await prisma.item.findMany({
       where: {
         shoppingListId: listId,
         articleId: {
-          in: ingredientsWithArticles.map((ing) => ing.articleId!),
+          in: articleIdsToCheck,
         },
       },
       select: {
@@ -156,9 +176,11 @@ export async function POST(
     );
 
     // Filtrar ingredientes cuyos artículos no están ya en la lista
-    const ingredientsToAdd = ingredientsWithArticles.filter(
-      (ing) => !existingArticleIds.has(ing.articleId!)
-    );
+    const ingredientsToAdd = ingredientsToProcess.filter((ingredient) => {
+      const selection = ingredientSelections?.[ingredient.id];
+      const articleIdToUse = selection?.articleId || ingredient.articleId!;
+      return !existingArticleIds.has(articleIdToUse);
+    });
 
     if (ingredientsToAdd.length === 0) {
       return NextResponse.json(
@@ -178,15 +200,16 @@ export async function POST(
 
     // Verificar acceso a todos los artículos antes de crear
     for (const ingredient of ingredientsToAdd) {
-      if (!ingredient.articleId) continue;
+      const selection = ingredientSelections?.[ingredient.id];
+      const articleIdToUse = selection?.articleId || ingredient.articleId!;
 
       const article = await prisma.article.findUnique({
-        where: { id: ingredient.articleId },
+        where: { id: articleIdToUse },
       });
 
       if (!article) {
         return NextResponse.json(
-          { error: `Artículo no encontrado: ${ingredient.articleId}` },
+          { error: `Artículo no encontrado: ${articleIdToUse}` },
           { status: 404 }
         );
       }
@@ -197,28 +220,44 @@ export async function POST(
           { status: 403 }
         );
       }
+
+      // Verificar que el artículo pertenece al producto del ingrediente
+      if (article.productId !== ingredient.productId) {
+        return NextResponse.json(
+          { error: `El artículo ${article.name} no corresponde al producto ${ingredient.product.name}` },
+          { status: 400 }
+        );
+      }
     }
 
     // Crear items para los ingredientes que no están en la lista
-    const itemsToCreate = ingredientsToAdd.map((ingredient) => ({
-      articleId: ingredient.articleId!,
-      quantity: ingredient.quantity * multiplier,
-      unit: ingredient.unit,
-      notes: ingredient.notes,
-      shoppingListId: listId,
-      addedById: user.id,
-    }));
+    const itemsToCreate = ingredientsToAdd.map((ingredient) => {
+      const selection = ingredientSelections?.[ingredient.id];
+      const articleIdToUse = selection?.articleId || ingredient.articleId!;
+      const quantityToUse = (selection?.quantity || ingredient.quantity) * multiplier;
+      const unitIdToUse = selection?.unitId || ingredient.unitId;
+
+      return {
+        articleId: articleIdToUse,
+        quantity: quantityToUse,
+        unitId: unitIdToUse,
+        notes: ingredient.notes,
+        shoppingListId: listId,
+        addedById: user.id,
+      };
+    });
 
     const createdItems = await prisma.item.createMany({
       data: itemsToCreate,
     });
 
     // Obtener los items creados con toda su información
+    const articleIdsAdded = itemsToCreate.map((item) => item.articleId);
     const newItems = await prisma.item.findMany({
       where: {
         shoppingListId: listId,
         articleId: {
-          in: ingredientsToAdd.map((ing) => ing.articleId!),
+          in: articleIdsAdded,
         },
         addedById: user.id,
         createdAt: {
@@ -256,11 +295,15 @@ export async function POST(
       take: createdItems.count,
     });
 
+    // Actualizar el mensaje para incluir información sobre selecciones
+    const skippedCount = existingItems.length;
+    const addedCount = createdItems.count;
+
     return NextResponse.json(
       {
-        message: `Se añadieron ${createdItems.count} artículos a la lista`,
-        added: createdItems.count,
-        skipped: existingItems.length,
+        message: `Se añadieron ${addedCount} artículos a la lista`,
+        added: addedCount,
+        skipped: skippedCount,
         items: newItems,
       },
       { status: 201 }

@@ -6,7 +6,7 @@ import { z } from 'zod';
 const createItemSchema = z.object({
   articleId: z.string().min(1, 'El artículo es requerido'),
   quantity: z.number().positive('La cantidad debe ser positiva'),
-  unit: z.string().optional(),
+  unitId: z.string().optional(),
   storeId: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -98,7 +98,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { articleId, quantity, unit, storeId, notes } =
+    const { articleId, quantity, unitId, storeId, notes } =
       createItemSchema.parse(body);
 
     // Verificar acceso al artículo
@@ -142,11 +142,26 @@ export async function POST(
       );
     }
 
+    // Obtener unidad por defecto si no se especifica
+    let finalUnitId = unitId;
+    if (!finalUnitId) {
+      const defaultUnit = await prisma.unit.findUnique({
+        where: { symbol: 'un' },
+      });
+      if (!defaultUnit) {
+        return NextResponse.json(
+          { error: 'Unidad por defecto no encontrada' },
+          { status: 500 }
+        );
+      }
+      finalUnitId = defaultUnit.id;
+    }
+
     const item = await prisma.item.create({
       data: {
         articleId,
         quantity,
-        unit: unit || 'unidades',
+        unitId: finalUnitId,
         storeId: storeId || null,
         notes: notes || null,
         shoppingListId: id,
@@ -174,6 +189,13 @@ export async function POST(
           select: {
             id: true,
             name: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            name: true,
+            symbol: true,
           },
         },
       },

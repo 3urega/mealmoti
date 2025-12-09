@@ -16,7 +16,7 @@ const createRecipeSchema = z.object({
       z.object({
         productId: z.string().min(1, 'El producto es requerido'),
         quantity: z.number().positive('La cantidad debe ser positiva'),
-        unit: z.string().min(1, 'La unidad es requerida'),
+        unitId: z.string().min(1, 'La unidad es requerida'),
         isOptional: z.boolean().optional().default(false),
         notes: z.string().optional(),
         order: z.number().int().optional().default(0),
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
           create: ingredients.map((ing: typeof ingredients[0], index: number) => ({
             productId: ing.productId,
             quantity: ing.quantity,
-            unit: ing.unit,
+            unitId: ing.unitId,
             isOptional: ing.isOptional ?? false,
             notes: ing.notes,
             order: ing.order ?? index,

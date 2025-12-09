@@ -294,6 +294,30 @@ export default function ListDetailPage() {
     }
   };
 
+  const handleResetList = async () => {
+    if (!confirm('¿Estás seguro de que quieres resetear todos los artículos comprados? Esto marcará todos los items como no comprados.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/lists/${listId}/items/reset`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Error al resetear la lista');
+        return;
+      }
+
+      alert(`✅ ${data.message}`);
+      fetchList();
+    } catch (err) {
+      setError('Error de conexión');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -338,6 +362,11 @@ export default function ListDetailPage() {
                 Plantilla
               </span>
             )}
+            {list.status === 'periodica' && (
+              <span className="rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800">
+                Periódica
+              </span>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -369,6 +398,7 @@ export default function ListDetailPage() {
                 <option value="active">Activa</option>
                 <option value="completed">Completada</option>
                 <option value="archived">Archivada</option>
+                <option value="periodica">Periódica</option>
               </select>
               <button
                 onClick={() => setShowShareModal(true)}
@@ -379,12 +409,24 @@ export default function ListDetailPage() {
             </>
           )}
           {canEdit && (
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              {showAddForm ? 'Cancelar' : 'Agregar Item'}
-            </button>
+            <>
+              {/* Botón de resetear - visible si hay items comprados o si la lista es periódica */}
+              {(list.items.some(item => item.checked) || list.status === 'periodica') && (
+                <button
+                  onClick={handleResetList}
+                  className="rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+                  title="Resetear todos los artículos comprados"
+                >
+                  Reiniciar Compra
+                </button>
+              )}
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                {showAddForm ? 'Cancelar' : 'Agregar Item'}
+              </button>
+            </>
           )}
         </div>
       </div>

@@ -7,7 +7,7 @@ const updateListSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   status: z
-    .enum(['draft', 'active', 'completed', 'archived'])
+    .enum(['draft', 'active', 'completed', 'archived', 'periodica'])
     .optional(),
   isTemplate: z.boolean().optional(),
 });

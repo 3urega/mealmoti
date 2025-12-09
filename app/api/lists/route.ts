@@ -10,7 +10,7 @@ const createListSchema = z.object({
   ingredientSelections: z.record(z.string(), z.object({
     articleId: z.string().min(1),
     quantity: z.number().positive().optional(),
-    unit: z.string().optional(),
+    unitId: z.string().optional(),
   })).optional(),
 });
 
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Aplicar filtro de status si se proporciona
-    if (status && ['draft', 'active', 'completed', 'archived'].includes(status)) {
+    if (status && ['draft', 'active', 'completed', 'archived', 'periodica'].includes(status)) {
       if (whereConditions.OR) {
         // Si ya hay OR, agregar status a cada condición
         whereConditions = {
@@ -197,6 +197,13 @@ export async function POST(request: NextRequest) {
                   brand: true,
                 },
               },
+              unit: {
+                select: {
+                  id: true,
+                  name: true,
+                  symbol: true,
+                },
+              },
             },
             orderBy: {
               order: 'asc',
@@ -266,7 +273,7 @@ export async function POST(request: NextRequest) {
         recipeItems.push({
           articleId: articleIdToUse,
           quantity: (selection?.quantity || ingredient.quantity) * multiplier,
-          unit: selection?.unit || ingredient.unit,
+          unitId: selection?.unitId || ingredient.unitId,
           notes: ingredient.notes,
           addedById: user.id,
         });
@@ -340,7 +347,7 @@ export async function POST(request: NextRequest) {
         data: recipeItems.map((item: typeof recipeItems[0]) => ({
           articleId: item.articleId,
           quantity: item.quantity,
-          unit: item.unit,
+          unitId: item.unitId,
           notes: item.notes,
           shoppingListId: list.id,
           addedById: item.addedById,
@@ -354,7 +361,7 @@ export async function POST(request: NextRequest) {
         data: templateItems.map((item: typeof templateItems[0]) => ({
           articleId: item.articleId,
           quantity: item.quantity,
-          unit: item.unit,
+          unitId: item.unitId,
           storeId: item.storeId,
           notes: item.notes,
           shoppingListId: list.id,
@@ -396,6 +403,13 @@ export async function POST(request: NextRequest) {
                 select: {
                   id: true,
                   name: true,
+                },
+              },
+              unit: {
+                select: {
+                  id: true,
+                  name: true,
+                  symbol: true,
                 },
               },
             },

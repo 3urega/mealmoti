@@ -164,7 +164,7 @@ model ShoppingList {
   description String?
   ownerId     String
   owner       User     @relation("ListOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  status      String   @default("draft") // "draft", "active", "completed", "archived"
+  status      String   @default("draft") // "draft", "active", "completed", "archived", "periodica"
   statusDate  DateTime @default(now())
   totalCost   Float?
   isTemplate  Boolean  @default(false)

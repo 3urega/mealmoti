@@ -6,7 +6,7 @@ import { z } from 'zod';
 const updateIngredientSchema = z.object({
   productId: z.string().min(1).optional(),
   quantity: z.number().positive().optional(),
-  unit: z.string().min(1).optional(),
+  unitId: z.string().min(1).optional(),
   isOptional: z.boolean().optional(),
   notes: z.string().optional(),
   order: z.number().int().optional(),
@@ -108,6 +108,13 @@ export async function PUT(
             brand: true,
             variant: true,
             suggestedPrice: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            name: true,
+            symbol: true,
           },
         },
       },

@@ -11,7 +11,12 @@ interface RecipeIngredient {
     name: string;
   };
   quantity: number;
-  unit: string;
+  unitId?: string | null;
+  unit?: {
+    id: string;
+    name: string;
+    symbol: string;
+  } | null;
   isOptional: boolean;
   notes?: string | null;
   article?: {
@@ -66,8 +71,9 @@ export default function RecipeDetailPage() {
   const [error, setError] = useState('');
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [ingredientSelections, setIngredientSelections] = useState<
-    Record<string, { articleId: string; quantity?: number; unit?: string }>
+    Record<string, { articleId: string; quantity?: number; unitId?: string }>
   >({});
+  const [units, setUnits] = useState<Array<{ id: string; name: string; symbol: string }>>([]);
   const [articlesByIngredient, setArticlesByIngredient] = useState<
     Record<string, Article[]>
   >({});
@@ -90,6 +96,8 @@ export default function RecipeDetailPage() {
   const [selectedListId, setSelectedListId] = useState('');
   const [addingToList, setAddingToList] = useState(false);
   const [addToListServings, setAddToListServings] = useState('');
+  const [addToListStep, setAddToListStep] = useState<'select-list' | 'select-articles'>('select-list');
+  const [addToListSelections, setAddToListSelections] = useState<Record<string, { articleId: string; quantity?: number; unitId?: string }>>({});
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(false);
   const [editName, setEditName] = useState('');
@@ -102,13 +110,42 @@ export default function RecipeDetailPage() {
   useEffect(() => {
     fetchUser();
     fetchRecipe();
+    fetchUnits();
   }, [recipeId]);
+
+  const fetchUnits = async () => {
+    try {
+      const res = await fetch('/api/units');
+      const data = await res.json();
+      if (res.ok && data.units) {
+        setUnits(data.units);
+      }
+    } catch (err) {
+      console.error('Error fetching units:', err);
+    }
+  };
 
   useEffect(() => {
     if (showAddToListModal) {
       fetchAvailableLists();
+      setAddToListStep('select-list');
+      setAddToListSelections({});
+      // Pre-seleccionar artículos asociados si existen
+      if (recipe) {
+        const preselections: Record<string, { articleId: string; quantity?: number; unitId?: string }> = {};
+        recipe.ingredients.forEach((ing) => {
+          if (ing.articleId) {
+            preselections[ing.id] = {
+              articleId: ing.articleId,
+              quantity: ing.quantity,
+              unitId: ing.unitId || undefined,
+            };
+          }
+        });
+        setAddToListSelections(preselections);
+      }
     }
-  }, [showAddToListModal]);
+  }, [showAddToListModal, recipe]);
 
   const fetchUser = async () => {
     try {
@@ -172,7 +209,7 @@ export default function RecipeDetailPage() {
     }
   };
 
-  const handleAddIngredient = async (productId: string, quantity: number, unit: string, isOptional: boolean, notes: string) => {
+  const handleAddIngredient = async (productId: string, quantity: number, unitId: string, isOptional: boolean, notes: string) => {
     if (!recipe) return;
 
     try {
@@ -182,7 +219,7 @@ export default function RecipeDetailPage() {
         body: JSON.stringify({
           productId,
           quantity,
-          unit,
+          unitId,
           isOptional,
           notes: notes || undefined,
           order: recipe.ingredients.length,
@@ -203,7 +240,7 @@ export default function RecipeDetailPage() {
     }
   };
 
-  const handleUpdateIngredient = async (ingredientId: string, productId: string, quantity: number, unit: string, isOptional: boolean, notes: string) => {
+  const handleUpdateIngredient = async (ingredientId: string, productId: string, quantity: number, unitId: string, isOptional: boolean, notes: string) => {
     if (!recipe) return;
 
     try {
@@ -213,7 +250,7 @@ export default function RecipeDetailPage() {
         body: JSON.stringify({
           productId,
           quantity,
-          unit,
+          unitId,
           isOptional,
           notes: notes || undefined,
         }),
@@ -276,16 +313,30 @@ export default function RecipeDetailPage() {
     }
   };
 
+  const handleAddToListNext = () => {
+    if (!selectedListId) {
+      setError('Por favor selecciona una lista');
+      return;
+    }
+    setError('');
+    setAddToListStep('select-articles');
+    // Cargar artículos para todos los ingredientes
+    recipe?.ingredients.forEach((ingredient) => {
+      if (!articlesByIngredient[ingredient.id] && !loadingArticles[ingredient.id]) {
+        fetchArticlesForIngredient(ingredient.id);
+      }
+    });
+  };
+
   const handleAddToList = async () => {
     if (!recipe || !selectedListId) return;
 
-    // Verificar que la receta tiene artículos asociados
-    const ingredientsWithArticles = recipe.ingredients.filter(
-      (ing) => ing.articleId
-    );
-
-    if (ingredientsWithArticles.length === 0) {
-      setError('La receta no tiene artículos asociados. Asocia artículos primero.');
+    // Verificar que al menos un ingrediente tiene artículo seleccionado
+    const hasSelections = Object.values(addToListSelections).some(sel => sel.articleId);
+    const hasPreselected = recipe.ingredients.some(ing => ing.articleId);
+    
+    if (!hasSelections && !hasPreselected) {
+      setError('Debes seleccionar al menos un artículo para los ingredientes.');
       return;
     }
 
@@ -299,6 +350,7 @@ export default function RecipeDetailPage() {
         body: JSON.stringify({
           recipeId: recipe.id,
           servings: addToListServings ? parseInt(addToListServings) : recipe.servings,
+          ingredientSelections: Object.keys(addToListSelections).length > 0 ? addToListSelections : undefined,
         }),
       });
 
@@ -315,6 +367,8 @@ export default function RecipeDetailPage() {
       setShowAddToListModal(false);
       setSelectedListId('');
       setAddToListServings('');
+      setAddToListStep('select-list');
+      setAddToListSelections({});
     } catch (err) {
       setError('Error de conexión');
     } finally {
@@ -333,13 +387,13 @@ export default function RecipeDetailPage() {
         setServings(data.recipe.servings?.toString() || '');
         
         // Auto-seleccionar artículos preseleccionados si existen
-        const preselections: Record<string, { articleId: string; quantity?: number; unit?: string }> = {};
+        const preselections: Record<string, { articleId: string; quantity?: number; unitId?: string }> = {};
         data.recipe.ingredients.forEach((ing: RecipeIngredient) => {
           if (ing.articleId) {
             preselections[ing.id] = {
               articleId: ing.articleId,
               quantity: ing.quantity,
-              unit: ing.unit,
+              unitId: ing.unitId || undefined,
             };
           }
         });
@@ -510,37 +564,34 @@ export default function RecipeDetailPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold text-gray-900">{recipe.name}</h1>
-            {!recipe.isGeneral && user && recipe.createdBy.id === user.id && (
-              <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-800">
-                Receta privada
-              </span>
-            )}
-            {recipe.isGeneral && (
-              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
-                Receta pública
-              </span>
-            )}
-          </div>
-          {recipe.description && (
-            <p className="mt-2 text-gray-600">{recipe.description}</p>
+      {/* Header con título y badges */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-3">
+          <h1 className="text-3xl font-bold text-gray-900">{recipe.name}</h1>
+          {!recipe.isGeneral && user && recipe.createdBy.id === user.id && (
+            <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-800">
+              Receta privada
+            </span>
           )}
-          <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
-            {recipe.servings && (
-              <span>Porciones: {recipe.servings}</span>
-            )}
-            {recipe.prepTime && (
-              <span>Preparación: {recipe.prepTime} min</span>
-            )}
-            {recipe.cookTime && (
-              <span>Cocción: {recipe.cookTime} min</span>
-            )}
-          </div>
+          {recipe.isGeneral && (
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+              Receta pública
+            </span>
+          )}
         </div>
-        <div className="flex gap-2">
+
+        {/* Información del creador */}
+        <div className="mb-4 text-sm text-gray-600">
+          <span>Por {recipe.createdBy.name}</span>
+          {recipe.originalRecipe && (
+            <span className="ml-2 text-gray-500">
+              • Basada en: {recipe.originalRecipe.name}
+            </span>
+          )}
+        </div>
+
+        {/* Botones de acción */}
+        <div className="flex flex-wrap gap-2 mb-6">
           {user && recipe.createdBy.id === user.id && (
             <button
               onClick={handleOpenEditModal}
@@ -575,14 +626,129 @@ export default function RecipeDetailPage() {
         </div>
       </div>
 
+      {/* Información principal de la receta */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Descripción */}
+        {recipe.description && (
+          <div className="md:col-span-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">
+              Descripción
+            </h2>
+            <p className="text-gray-700 whitespace-pre-line">
+              {recipe.description}
+            </p>
+          </div>
+        )}
+
+        {/* Información de porciones y tiempos */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            Información
+          </h3>
+          <div className="space-y-3">
+            {recipe.servings && (
+              <div className="flex items-center gap-2">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <div>
+                  <span className="text-sm text-gray-600">Porciones</span>
+                  <p className="text-lg font-semibold text-gray-900">{recipe.servings}</p>
+                </div>
+              </div>
+            )}
+            {recipe.prepTime && (
+              <div className="flex items-center gap-2">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <span className="text-sm text-gray-600">Preparación</span>
+                  <p className="text-lg font-semibold text-gray-900">{recipe.prepTime} min</p>
+                </div>
+              </div>
+            )}
+            {recipe.cookTime && (
+              <div className="flex items-center gap-2">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <span className="text-sm text-gray-600">Cocción</span>
+                  <p className="text-lg font-semibold text-gray-900">{recipe.cookTime} min</p>
+                </div>
+              </div>
+            )}
+            {recipe.prepTime && recipe.cookTime && (
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <span className="text-sm text-gray-600">Tiempo total</span>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {recipe.prepTime + recipe.cookTime} min
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Ingredientes - Resumen */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            Ingredientes
+          </h3>
+          <div className="space-y-2">
+            <p className="text-3xl font-bold text-gray-900">
+              {recipe.ingredients.length}
+            </p>
+            <p className="text-sm text-gray-600">
+              {recipe.ingredients.filter(ing => ing.isOptional).length > 0 && (
+                <span>
+                  {recipe.ingredients.filter(ing => ing.isOptional).length} opcional{recipe.ingredients.filter(ing => ing.isOptional).length > 1 ? 'es' : ''}
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Estado */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            Estado
+          </h3>
+          <div className="space-y-2">
+            {!recipe.isGeneral ? (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                Privada
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                Pública
+              </span>
+            )}
+            {recipe.originalRecipe && (
+              <p className="text-sm text-gray-600 mt-2">
+                Copia de receta pública
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Instrucciones */}
       {recipe.instructions && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-3 text-lg font-semibold text-gray-900">
             Instrucciones
           </h2>
-          <p className="whitespace-pre-line text-gray-700">
-            {recipe.instructions}
-          </p>
+          <div className="prose max-w-none">
+            <p className="whitespace-pre-line text-gray-700 leading-relaxed">
+              {recipe.instructions}
+            </p>
+          </div>
         </div>
       )}
 
@@ -602,7 +768,7 @@ export default function RecipeDetailPage() {
                     {ingredient.product.name}
                   </span>
                   <span className="text-gray-600">
-                    {ingredient.quantity} {ingredient.unit}
+                    {ingredient.quantity} {ingredient.unit?.symbol || ''}
                   </span>
                   {ingredient.isOptional && (
                     <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800">
@@ -730,7 +896,7 @@ export default function RecipeDetailPage() {
                         {ingredient.product.name}
                       </span>
                       <span className="ml-2 text-sm text-gray-600">
-                        {ingredient.quantity} {ingredient.unit}
+                        {ingredient.quantity} {ingredient.unit?.symbol || ''}
                       </span>
                     </div>
 
@@ -758,7 +924,7 @@ export default function RecipeDetailPage() {
                             [ingredient.id]: {
                               articleId: e.target.value,
                               quantity: ingredient.quantity,
-                              unit: ingredient.unit,
+                              unitId: ingredient.unitId || undefined,
                             },
                           }));
                         }}
@@ -807,9 +973,9 @@ export default function RecipeDetailPage() {
       {/* Modal para añadir a lista existente */}
       {showAddToListModal && recipe && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-xl">
+          <div className={`w-full ${addToListStep === 'select-list' ? 'max-w-md' : 'max-w-2xl'} rounded-lg border border-gray-200 bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto`}>
             <h2 className="mb-4 text-xl font-bold text-gray-900">
-              Añadir a Lista
+              {addToListStep === 'select-list' ? 'Añadir a Lista' : 'Seleccionar Artículos'}
             </h2>
 
             {error && (
@@ -818,79 +984,175 @@ export default function RecipeDetailPage() {
               </div>
             )}
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">
-                Selecciona una lista *
-              </label>
-              <select
-                required
-                value={selectedListId}
-                onChange={(e) => setSelectedListId(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-              >
-                <option value="">Seleccionar lista...</option>
-                {availableLists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name} {list.ownerId !== user?.id && '(Compartida)'}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {addToListStep === 'select-list' ? (
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Selecciona una lista *
+                  </label>
+                  <select
+                    required
+                    value={selectedListId}
+                    onChange={(e) => setSelectedListId(e.target.value)}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                  >
+                    <option value="">Seleccionar lista...</option>
+                    {availableLists.map((list) => (
+                      <option key={list.id} value={list.id}>
+                        {list.name} {list.ownerId !== user?.id && '(Compartida)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">
-                Porciones (opcional)
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={addToListServings}
-                onChange={(e) => setAddToListServings(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                placeholder={recipe.servings?.toString() || '4'}
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Las cantidades se ajustarán según las porciones
-              </p>
-            </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Porciones (opcional)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={addToListServings}
+                    onChange={(e) => setAddToListServings(e.target.value)}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                    placeholder={recipe.servings?.toString() || '4'}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Las cantidades se ajustarán según las porciones
+                  </p>
+                </div>
 
-            {recipe.ingredients.filter((ing) => ing.articleId).length > 0 && (
-              <div className="mb-4 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
-                <p>
-                  Se añadirán{' '}
-                  <strong>
-                    {recipe.ingredients.filter((ing) => ing.articleId).length}
-                  </strong>{' '}
-                  artículos a la lista.
-                </p>
-                <p className="mt-1 text-xs">
-                  Solo se añadirán los artículos que no estén ya en la lista.
-                </p>
-              </div>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddToListModal(false);
+                      setSelectedListId('');
+                      setAddToListServings('');
+                      setError('');
+                      setAddToListStep('select-list');
+                      setAddToListSelections({});
+                    }}
+                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddToListNext}
+                    disabled={!selectedListId}
+                    className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-6 max-h-96 space-y-4 overflow-y-auto">
+                  <h3 className="font-semibold text-gray-900">
+                    Selecciona artículos para cada ingrediente:
+                  </h3>
+                  {recipe.ingredients.map((ingredient) => {
+                    const articles = articlesByIngredient[ingredient.id] || [];
+                    const selection = addToListSelections[ingredient.id];
+
+                    return (
+                      <div
+                        key={ingredient.id}
+                        className="rounded-md border border-gray-200 bg-gray-50 p-4"
+                      >
+                        <div className="mb-2">
+                          <span className="font-medium text-gray-900">
+                            {ingredient.product.name}
+                          </span>
+                          <span className="ml-2 text-sm text-gray-600">
+                            {ingredient.quantity} {ingredient.unit?.symbol || ''}
+                          </span>
+                        </div>
+
+                        {articles.length === 0 && !loadingArticles[ingredient.id] && (
+                          <button
+                            type="button"
+                            onClick={() => fetchArticlesForIngredient(ingredient.id)}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Cargar artículos disponibles
+                          </button>
+                        )}
+
+                        {loadingArticles[ingredient.id] && (
+                          <p className="text-sm text-gray-500">Cargando...</p>
+                        )}
+
+                        {articles.length > 0 && (
+                          <select
+                            required
+                            value={selection?.articleId || ingredient.articleId || ''}
+                            onChange={(e) => {
+                              setAddToListSelections((prev) => ({
+                                ...prev,
+                                [ingredient.id]: {
+                                  articleId: e.target.value,
+                                  quantity: ingredient.quantity,
+                                  unitId: ingredient.unitId || undefined,
+                                },
+                              }));
+                            }}
+                            className="mt-2 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                          >
+                            <option value="">Seleccionar artículo...</option>
+                            {articles.map((article) => (
+                              <option key={article.id} value={article.id}>
+                                {article.name} ({article.brand})
+                                {article.suggestedPrice &&
+                                  ` - €${article.suggestedPrice.toFixed(2)}`}
+                                {ingredient.articleId === article.id && ' (preseleccionado)'}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddToListStep('select-list');
+                      setError('');
+                    }}
+                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Atrás
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddToListModal(false);
+                      setSelectedListId('');
+                      setAddToListServings('');
+                      setError('');
+                      setAddToListStep('select-list');
+                      setAddToListSelections({});
+                    }}
+                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddToList}
+                    disabled={addingToList}
+                    className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {addingToList ? 'Añadiendo...' : 'Añadir a Lista'}
+                  </button>
+                </div>
+              </>
             )}
-
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddToListModal(false);
-                  setSelectedListId('');
-                  setAddToListServings('');
-                  setError('');
-                }}
-                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleAddToList}
-                disabled={addingToList || !selectedListId}
-                className="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
-              >
-                {addingToList ? 'Añadiendo...' : 'Añadir a Lista'}
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -1024,10 +1286,11 @@ export default function RecipeDetailPage() {
                   Ingredientes
                 </h3>
                 <IngredientForm
-                  onSave={(productId, quantity, unit, isOptional, notes) => {
-                    handleAddIngredient(productId, parseFloat(quantity), unit, isOptional, notes);
+                  onSave={(productId, quantity, unitId, isOptional, notes) => {
+                    handleAddIngredient(productId, parseFloat(quantity), unitId, isOptional, notes);
                   }}
                   buttonText="Agregar Ingrediente"
+                  units={units}
                 />
               </div>
 
@@ -1036,10 +1299,11 @@ export default function RecipeDetailPage() {
                   <IngredientRow
                     key={ingredient.id}
                     ingredient={ingredient}
-                    onUpdate={(productId, quantity, unit, isOptional, notes) => {
-                      handleUpdateIngredient(ingredient.id, productId, parseFloat(quantity), unit, isOptional, notes);
+                    onUpdate={(productId, quantity, unitId, isOptional, notes) => {
+                      handleUpdateIngredient(ingredient.id, productId, parseFloat(quantity), unitId, isOptional, notes);
                     }}
                     onDelete={() => handleDeleteIngredient(ingredient.id)}
+                    units={units}
                   />
                 ))}
               </div>
@@ -1079,34 +1343,36 @@ function IngredientForm({
   onSave,
   buttonText,
   initialValues,
+  units,
 }: {
-  onSave: (productId: string, quantity: string, unit: string, isOptional: boolean, notes: string) => void;
+  onSave: (productId: string, quantity: string, unitId: string, isOptional: boolean, notes: string) => void;
   buttonText: string;
   initialValues?: {
     productId?: string;
     quantity?: number;
-    unit?: string;
+    unitId?: string;
     isOptional?: boolean;
     notes?: string;
   };
+  units: Array<{ id: string; name: string; symbol: string }>;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [productId, setProductId] = useState(initialValues?.productId || 'all');
   const [quantity, setQuantity] = useState(initialValues?.quantity?.toString() || '');
-  const [unit, setUnit] = useState(initialValues?.unit || 'unidades');
+  const [unitId, setUnitId] = useState(initialValues?.unitId || units.find(u => u.symbol === 'un')?.id || units[0]?.id || '');
   const [isOptional, setIsOptional] = useState(initialValues?.isOptional || false);
   const [notes, setNotes] = useState(initialValues?.notes || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productId || productId === 'all' || !quantity) {
-      alert('Por favor, selecciona un producto e ingresa una cantidad');
+    if (!productId || productId === 'all' || !quantity || !unitId) {
+      alert('Por favor, selecciona un producto, ingresa una cantidad y selecciona una unidad');
       return;
     }
-    onSave(productId, quantity, unit, isOptional, notes);
+    onSave(productId, quantity, unitId, isOptional, notes);
     setProductId('all');
     setQuantity('');
-    setUnit('unidades');
+    setUnitId(units.find(u => u.symbol === 'un')?.id || units[0]?.id || '');
     setIsOptional(false);
     setNotes('');
     setShowForm(false);
@@ -1153,13 +1419,18 @@ function IngredientForm({
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700">Unidad *</label>
-          <input
-            type="text"
+          <select
             required
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
+            value={unitId}
+            onChange={(e) => setUnitId(e.target.value)}
             className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
-          />
+          >
+            {units.map((unit) => (
+              <option key={unit.id} value={unit.id}>
+                {unit.symbol} ({unit.name})
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex items-end">
           <label className="flex items-center">
@@ -1206,24 +1477,26 @@ function IngredientRow({
   ingredient,
   onUpdate,
   onDelete,
+  units,
 }: {
   ingredient: RecipeIngredient;
-  onUpdate: (productId: string, quantity: string, unit: string, isOptional: boolean, notes: string) => void;
+  onUpdate: (productId: string, quantity: string, unitId: string, isOptional: boolean, notes: string) => void;
   onDelete: () => void;
+  units: Array<{ id: string; name: string; symbol: string }>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [productId, setProductId] = useState(ingredient.product.id);
   const [quantity, setQuantity] = useState(ingredient.quantity.toString());
-  const [unit, setUnit] = useState(ingredient.unit);
+  const [unitId, setUnitId] = useState(ingredient.unitId || units.find(u => u.symbol === 'un')?.id || units[0]?.id || '');
   const [isOptional, setIsOptional] = useState(ingredient.isOptional);
   const [notes, setNotes] = useState(ingredient.notes || '');
 
   const handleSave = () => {
-    if (!productId || productId === 'all' || !quantity) {
-      alert('Por favor, selecciona un producto e ingresa una cantidad');
+    if (!productId || productId === 'all' || !quantity || !unitId) {
+      alert('Por favor, selecciona un producto, ingresa una cantidad y selecciona una unidad');
       return;
     }
-    onUpdate(productId, quantity, unit, isOptional, notes);
+    onUpdate(productId, quantity, unitId, isOptional, notes);
     setIsEditing(false);
   };
 
@@ -1257,13 +1530,18 @@ function IngredientRow({
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700">Unidad *</label>
-            <input
-              type="text"
+            <select
               required
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
+              value={unitId}
+              onChange={(e) => setUnitId(e.target.value)}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900"
-            />
+            >
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.symbol} ({unit.name})
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex items-end">
             <label className="flex items-center">
@@ -1311,7 +1589,7 @@ function IngredientRow({
       <div className="flex-1">
         <span className="font-medium text-gray-900">{ingredient.product.name}</span>
         <span className="ml-2 text-gray-600">
-          {ingredient.quantity} {ingredient.unit}
+          {ingredient.quantity} {ingredient.unit?.symbol || ''}
         </span>
         {ingredient.isOptional && (
           <span className="ml-2 rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800">

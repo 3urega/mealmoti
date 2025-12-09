@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 const updateItemSchema = z.object({
   quantity: z.number().positive('La cantidad debe ser positiva').optional(),
-  unit: z.string().optional(),
+  unitId: z.string().optional(),
   checked: z.boolean().optional(),
   purchasedQuantity: z
     .number()
@@ -106,7 +106,7 @@ export async function PUT(
     // Preparar datos para actualizar
     const dataToUpdate: any = {};
     if (updateData.quantity !== undefined) dataToUpdate.quantity = updateData.quantity;
-    if (updateData.unit !== undefined) dataToUpdate.unit = updateData.unit;
+    if (updateData.unitId !== undefined) dataToUpdate.unitId = updateData.unitId;
     if (updateData.checked !== undefined) dataToUpdate.checked = updateData.checked;
     if (updateData.purchasedQuantity !== undefined)
       dataToUpdate.purchasedQuantity = updateData.purchasedQuantity;
@@ -143,6 +143,13 @@ export async function PUT(
           select: {
             id: true,
             name: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            name: true,
+            symbol: true,
           },
         },
       },
