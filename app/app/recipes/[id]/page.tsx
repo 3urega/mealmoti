@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import SearchableSelect from '@/components/SearchableSelect';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface RecipeIngredient {
   id: string;
@@ -65,6 +66,7 @@ interface Article {
 export default function RecipeDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { showToast, showConfirm } = useNotification();
   const recipeId = params.id as string;
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
@@ -273,7 +275,17 @@ export default function RecipeDetailPage() {
   const handleDeleteIngredient = async (ingredientId: string) => {
     if (!recipe) return;
 
-    if (!confirm('¿Estás seguro de que quieres eliminar este ingrediente?')) {
+    const confirmed = await showConfirm(
+      'Eliminar ingrediente',
+      '¿Estás seguro de que quieres eliminar este ingrediente?',
+      {
+        variant: 'danger',
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar',
+      }
+    );
+
+    if (!confirmed) {
       return;
     }
 
@@ -363,7 +375,10 @@ export default function RecipeDetailPage() {
       }
 
       // Mostrar mensaje de éxito y cerrar modal
-      alert(`✅ ${data.message}\nAñadidos: ${data.added}\nOmitidos (ya existían): ${data.skipped}`);
+      showToast(
+        'success',
+        `${data.message}\nAñadidos: ${data.added}\nOmitidos (ya existían): ${data.skipped}`
+      );
       setShowAddToListModal(false);
       setSelectedListId('');
       setAddToListServings('');
@@ -1291,6 +1306,7 @@ export default function RecipeDetailPage() {
                   }}
                   buttonText="Agregar Ingrediente"
                   units={units}
+                  showToast={showToast}
                 />
               </div>
 
@@ -1304,6 +1320,7 @@ export default function RecipeDetailPage() {
                     }}
                     onDelete={() => handleDeleteIngredient(ingredient.id)}
                     units={units}
+                    showToast={showToast}
                   />
                 ))}
               </div>
@@ -1344,6 +1361,7 @@ function IngredientForm({
   buttonText,
   initialValues,
   units,
+  showToast,
 }: {
   onSave: (productId: string, quantity: string, unitId: string, isOptional: boolean, notes: string) => void;
   buttonText: string;
@@ -1355,6 +1373,7 @@ function IngredientForm({
     notes?: string;
   };
   units: Array<{ id: string; name: string; symbol: string }>;
+  showToast: (type: 'success' | 'error' | 'warning' | 'info', message: string, duration?: number) => void;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [productId, setProductId] = useState(initialValues?.productId || 'all');
@@ -1366,7 +1385,7 @@ function IngredientForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!productId || productId === 'all' || !quantity || !unitId) {
-      alert('Por favor, selecciona un producto, ingresa una cantidad y selecciona una unidad');
+      showToast('error', 'Por favor, selecciona un producto, ingresa una cantidad y selecciona una unidad');
       return;
     }
     onSave(productId, quantity, unitId, isOptional, notes);
@@ -1478,11 +1497,13 @@ function IngredientRow({
   onUpdate,
   onDelete,
   units,
+  showToast,
 }: {
   ingredient: RecipeIngredient;
   onUpdate: (productId: string, quantity: string, unitId: string, isOptional: boolean, notes: string) => void;
   onDelete: () => void;
   units: Array<{ id: string; name: string; symbol: string }>;
+  showToast: (type: 'success' | 'error' | 'warning' | 'info', message: string, duration?: number) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [productId, setProductId] = useState(ingredient.product.id);
@@ -1493,7 +1514,7 @@ function IngredientRow({
 
   const handleSave = () => {
     if (!productId || productId === 'all' || !quantity || !unitId) {
-      alert('Por favor, selecciona un producto, ingresa una cantidad y selecciona una unidad');
+      showToast('error', 'Por favor, selecciona un producto, ingresa una cantidad y selecciona una unidad');
       return;
     }
     onUpdate(productId, quantity, unitId, isOptional, notes);

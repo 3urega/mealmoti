@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface Article {
   id: string;
@@ -57,6 +58,7 @@ export default function ListItem({
   onUpdate,
   onDelete,
 }: ListItemProps) {
+  const { showConfirm } = useNotification();
   const [isEditing, setIsEditing] = useState(false);
   const [editQuantity, setEditQuantity] = useState(quantity.toString());
   const [editUnit, setEditUnit] = useState(unit || '');
@@ -104,9 +106,18 @@ export default function ListItem({
     setUpdating(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!canEdit) return;
-    if (confirm('¿Estás seguro de eliminar este item?')) {
+    const confirmed = await showConfirm(
+      'Eliminar item',
+      '¿Estás seguro de eliminar este item?',
+      {
+        variant: 'danger',
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar',
+      }
+    );
+    if (confirmed) {
       onDelete(id);
     }
   };

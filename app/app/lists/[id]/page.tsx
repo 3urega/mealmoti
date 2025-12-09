@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import ListItem from '@/components/ListItem';
 import ShareListModal from '@/components/ShareListModal';
 import PurchaseModal from '@/components/PurchaseModal';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface Article {
   id: string;
@@ -77,6 +78,7 @@ interface ShoppingList {
 export default function ListDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { showToast, showConfirm } = useNotification();
   const listId = params.id as string;
   const [list, setList] = useState<ShoppingList | null>(null);
   const [loading, setLoading] = useState(true);
@@ -323,7 +325,17 @@ export default function ListDetailPage() {
   };
 
   const handleResetList = async () => {
-    if (!confirm('¿Estás seguro de que quieres resetear todos los artículos comprados? Esto marcará todos los items como no comprados.')) {
+    const confirmed = await showConfirm(
+      'Resetear lista de compra',
+      '¿Estás seguro de que quieres resetear todos los artículos comprados? Esto marcará todos los items como no comprados.',
+      {
+        variant: 'warning',
+        confirmText: 'Resetear',
+        cancelText: 'Cancelar',
+      }
+    );
+
+    if (!confirmed) {
       return;
     }
 
@@ -339,7 +351,7 @@ export default function ListDetailPage() {
         return;
       }
 
-      alert(`✅ ${data.message}`);
+      showToast('success', data.message);
       fetchList();
     } catch (err) {
       setError('Error de conexión');
