@@ -101,6 +101,7 @@ model Article {
   stores             ArticleStore[]
   ingredients        ArticleIngredient[]
   recipeIngredients  RecipeIngredient[]
+  purchaseItems      PurchaseItem[]
 
   @@index([name])
   @@index([productId])
@@ -134,8 +135,9 @@ model Store {
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  articles ArticleStore[]
-  items    Item[]
+  articles      ArticleStore[]
+  items         Item[]
+  purchaseItems PurchaseItem[]
 
   @@index([name])
   @@index([isGeneral, createdById])
@@ -175,8 +177,9 @@ model ShoppingList {
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  items  Item[]
-  shares ShoppingListShare[]
+  items     Item[]
+  shares    ShoppingListShare[]
+  purchases Purchase[]
 
   @@index([ownerId])
   @@index([status])
@@ -206,11 +209,56 @@ model Item {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
+  // Relaciones
+  purchaseItems PurchaseItem[]
+
   @@unique([shoppingListId, articleId]) // Un artículo solo puede aparecer una vez por lista
   @@index([shoppingListId])
   @@index([articleId])
   @@index([unitId])
   @@index([checked])
+}
+
+model Purchase {
+  id            String   @id @default(cuid())
+  shoppingListId String
+  shoppingList   ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  totalPaid     Float?
+  purchasedAt   DateTime @default(now())
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relaciones
+  items PurchaseItem[]
+
+  @@index([shoppingListId])
+  @@index([purchasedAt])
+}
+
+model PurchaseItem {
+  id               String   @id @default(cuid())
+  purchaseId       String
+  purchase         Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  itemId           String?  // Referencia al Item original para trazabilidad
+  item             Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  articleId        String
+  article          Article  @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  quantity         Float    // Cantidad solicitada originalmente
+  purchasedQuantity Float   // Cantidad realmente comprada
+  unitId           String?
+  unit             Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  price            Float    // Precio unitario pagado
+  subtotal         Float    // Calculado: purchasedQuantity * price
+  storeId          String?
+  store            Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([purchaseId])
+  @@index([articleId])
+  @@index([itemId])
 }
 
 model ShoppingListShare {
@@ -238,6 +286,7 @@ model Unit {
   // Relaciones
   recipeIngredients RecipeIngredient[] @relation("RecipeIngredientUnit")
   items             Item[]             @relation("ItemUnit")
+  purchaseItems     PurchaseItem[]
 
   @@index([name])
   @@index([symbol])

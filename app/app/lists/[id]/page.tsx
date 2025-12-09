@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ListItem from '@/components/ListItem';
 import ShareListModal from '@/components/ShareListModal';
+import PurchaseModal from '@/components/PurchaseModal';
 
 interface Article {
   id: string;
@@ -27,7 +28,13 @@ interface ListItemData {
   articleId: string;
   article: Article;
   quantity: number;
-  unit: string;
+  unit?: string | null;
+  unitId?: string | null;
+  unitRelation?: {
+    id: string;
+    name: string;
+    symbol: string;
+  } | null;
   checked: boolean;
   purchasedQuantity?: number | null;
   price?: number | null;
@@ -90,11 +97,17 @@ export default function ListDetailPage() {
     email: string;
     name: string;
   } | null>(null);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchaseModalMode, setPurchaseModalMode] = useState<'create' | 'edit'>('create');
+  const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(false);
 
   useEffect(() => {
     fetchList();
     fetchArticles();
     fetchStores();
+    fetchPurchases();
   }, [listId]);
 
   useEffect(() => {
@@ -294,6 +307,21 @@ export default function ListDetailPage() {
     }
   };
 
+  const fetchPurchases = async () => {
+    setLoadingPurchases(true);
+    try {
+      const res = await fetch(`/api/lists/${listId}/purchases`);
+      const data = await res.json();
+      if (res.ok && data.purchases) {
+        setPurchases(data.purchases);
+      }
+    } catch (err) {
+      console.error('Error fetching purchases:', err);
+    } finally {
+      setLoadingPurchases(false);
+    }
+  };
+
   const handleResetList = async () => {
     if (!confirm('¿Estás seguro de que quieres resetear todos los artículos comprados? Esto marcará todos los items como no comprados.')) {
       return;
@@ -316,6 +344,62 @@ export default function ListDetailPage() {
     } catch (err) {
       setError('Error de conexión');
     }
+  };
+
+  const handleCreatePurchase = async (data: {
+    purchasedAt: string;
+    notes?: string;
+  }) => {
+    const res = await fetch(`/api/lists/${listId}/purchases`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || 'Error al registrar la compra');
+    }
+
+    // Recargar lista y compras
+    fetchList();
+    fetchPurchases();
+  };
+
+  const handleEditPurchase = async (data: {
+    purchasedAt: string;
+    notes?: string;
+    items?: Array<{
+      id: string;
+      purchasedQuantity?: number;
+      price?: number;
+      notes?: string | null;
+    }>;
+  }) => {
+    if (!selectedPurchase) return;
+
+    const res = await fetch(`/api/purchases/${selectedPurchase.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || 'Error al actualizar la compra');
+    }
+
+    // Recargar compras
+    fetchPurchases();
+    setSelectedPurchase(null);
+  };
+
+  const handleOpenPurchaseModal = (mode: 'create' | 'edit', purchase?: any) => {
+    setPurchaseModalMode(mode);
+    setSelectedPurchase(purchase);
+    setShowPurchaseModal(true);
   };
 
   if (loading) {
@@ -410,6 +494,16 @@ export default function ListDetailPage() {
           )}
           {canEdit && (
             <>
+              {/* Botón de registrar compra - visible si hay items comprados */}
+              {list.items.some(item => item.checked) && (
+                <button
+                  onClick={() => handleOpenPurchaseModal('create')}
+                  className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 flex items-center gap-2"
+                  title="Registrar compra con los artículos marcados"
+                >
+                  💳 Registrar Compra
+                </button>
+              )}
               {/* Botón de resetear - visible si hay items comprados o si la lista es periódica */}
               {(list.items.some(item => item.checked) || list.status === 'periodica') && (
                 <button
@@ -565,6 +659,7 @@ export default function ListDetailPage() {
             <ListItem
               key={item.id}
               {...item}
+              unit={item.unitRelation?.symbol || item.unit || 'un'}
               canEdit={canEdit}
               onUpdate={handleUpdateItem}
               onDelete={handleDeleteItem}
@@ -572,6 +667,142 @@ export default function ListDetailPage() {
           ))}
         </div>
       )}
+
+      {/* Historial de Compras */}
+      <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <span className="text-2xl">💰</span>
+            Historial de Compras
+            {purchases.length > 0 && (
+              <span className="ml-2 rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
+                {purchases.length}
+              </span>
+            )}
+          </h2>
+        </div>
+
+        {loadingPurchases ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-4 text-gray-600">Cargando compras...</p>
+          </div>
+        ) : purchases.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🛒</div>
+            <p className="text-gray-600 font-medium mb-2">
+              Aún no has registrado compras para esta lista
+            </p>
+            <p className="text-sm text-gray-500">
+              Marca artículos como comprados y usa "💳 Registrar Compra" para crear un registro
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {purchases.map((purchase) => {
+              const purchaseDate = new Date(purchase.purchasedAt);
+              const formattedDate = purchaseDate.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              });
+              const formattedTime = purchaseDate.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+              const isToday = purchaseDate.toDateString() === new Date().toDateString();
+
+              return (
+                <div
+                  key={purchase.id}
+                  className="group rounded-lg border-2 border-gray-200 bg-gradient-to-r from-white to-gray-50 p-5 hover:border-green-300 hover:shadow-lg transition-all cursor-pointer"
+                  onClick={() => handleOpenPurchaseModal('edit', purchase)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold text-gray-900 capitalize text-lg">
+                          {isToday ? 'Hoy' : formattedDate}
+                        </h3>
+                        <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {formattedTime}
+                        </span>
+                        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                          {purchase.items.length} artículo{purchase.items.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      {purchase.notes && (
+                        <p className="text-sm text-gray-600 mb-2 italic">
+                          "{purchase.notes}"
+                        </p>
+                      )}
+                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                        <span>Haz clic para ver detalles</span>
+                      </div>
+                    </div>
+                    <div className="text-right ml-6 flex flex-col items-end">
+                      <div className="text-3xl font-bold text-green-600 mb-1">
+                        {purchase.totalPaid
+                          ? `€${purchase.totalPaid.toFixed(2)}`
+                          : '—'}
+                      </div>
+                      {purchase.totalPaid && (
+                        <div className="text-xs text-gray-500">
+                          Total pagado
+                        </div>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenPurchaseModal('edit', purchase);
+                        }}
+                        className="mt-3 px-4 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                      >
+                        ✏️ Editar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modal de Compra */}
+      <PurchaseModal
+        isOpen={showPurchaseModal}
+        onClose={() => {
+          setShowPurchaseModal(false);
+          setSelectedPurchase(null);
+        }}
+        mode={purchaseModalMode}
+        checkedItems={
+          purchaseModalMode === 'create'
+            ? list.items
+                .filter((item) => item.checked)
+                .map((item) => ({
+                  id: item.id,
+                  article: item.article,
+                  quantity: item.quantity,
+                  purchasedQuantity: item.purchasedQuantity,
+                  price: item.price,
+                  unit: item.unitRelation
+                    ? { id: item.unitRelation.id, symbol: item.unitRelation.symbol }
+                    : item.unit
+                    ? { id: item.unitId || '', symbol: item.unit }
+                    : null,
+                  store: item.store,
+                  notes: item.notes,
+                }))
+            : undefined
+        }
+        purchase={purchaseModalMode === 'edit' ? selectedPurchase : undefined}
+        onSave={
+          purchaseModalMode === 'create' ? handleCreatePurchase : handleEditPurchase
+        }
+      />
 
       <ShareListModal
         isOpen={showShareModal}

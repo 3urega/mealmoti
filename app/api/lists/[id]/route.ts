@@ -87,6 +87,13 @@ export async function GET(
                 name: true,
               },
             },
+            unit: {
+              select: {
+                id: true,
+                name: true,
+                symbol: true,
+              },
+            },
           },
           orderBy: {
             createdAt: 'asc',
