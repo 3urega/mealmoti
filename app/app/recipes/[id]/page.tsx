@@ -1317,10 +1317,10 @@ export default function RecipeDetailPage() {
                   <IngredientRow
                     key={ingredient.id}
                     ingredient={ingredient}
-                    onUpdate={(productId, quantity, unitId, isOptional, notes) => {
-                      handleUpdateIngredient(ingredient.id, productId, parseFloat(quantity), unitId, isOptional, notes);
+                    onUpdate={async (productId, quantity, unitId, isOptional, notes) => {
+                      await handleUpdateIngredient(ingredient.id, productId, parseFloat(quantity), unitId, isOptional, notes);
                     }}
-                    onDelete={() => handleDeleteIngredient(ingredient.id)}
+                    onDelete={async () => await handleDeleteIngredient(ingredient.id)}
                     units={units}
                     showToast={showToast}
                   />
