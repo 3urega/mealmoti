@@ -179,24 +179,12 @@ export async function POST(
       finalUnitId = defaultUnit.id;
     }
 
-    // Obtener precio del artículo desde ArticleStore (ya que viene de una tienda)
+    // Obtener precio del artículo desde ArticleStore (ya tenemos articleStore de la verificación anterior)
     let itemPrice: number | null = null;
-    const articleStore = await prisma.articleStore.findUnique({
-      where: {
-        articleId_storeId: {
-          articleId,
-          storeId,
-        },
-      },
-    });
     if (articleStore?.price) {
       itemPrice = articleStore.price;
     } else {
       // Si no hay precio en ArticleStore, usar suggestedPrice del artículo
-      const article = await prisma.article.findUnique({
-        where: { id: articleId },
-        select: { suggestedPrice: true },
-      });
       if (article?.suggestedPrice) {
         itemPrice = article.suggestedPrice;
       }

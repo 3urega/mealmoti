@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ProductModal from '@/components/ProductModal';
+import BulkProductModal from '@/components/BulkProductModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 interface Product {
@@ -33,6 +34,7 @@ export default function ProductsPage() {
   const [limit] = useState(50);
 
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
@@ -156,12 +158,20 @@ export default function ProductsPage() {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Gestión de Productos</h1>
-        <button
-          onClick={handleCreateClick}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Nuevo Producto
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowBulkModal(true)}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            Crear Múltiples
+          </button>
+          <button
+            onClick={handleCreateClick}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Nuevo Producto
+          </button>
+        </div>
       </div>
 
       {/* Búsqueda y Filtros */}
@@ -346,6 +356,13 @@ export default function ProductsPage() {
           setEditingProduct(null);
         }}
         product={editingProduct}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Modal de Crear Múltiples */}
+      <BulkProductModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
         onSuccess={handleModalSuccess}
       />
 
