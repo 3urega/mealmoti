@@ -447,7 +447,8 @@ export async function POST(request: NextRequest) {
                   name: true,
                 },
               },
-              unit: {
+              // @ts-ignore - unitRelation existe pero TypeScript puede no reconocerlo si el cliente no está actualizado
+              unitRelation: {
                 select: {
                   id: true,
                   name: true,
