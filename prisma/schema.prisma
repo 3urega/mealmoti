@@ -23,6 +23,7 @@ model User {
   createdArticles Article[]           @relation("ArticleCreator")
   createdStores   Store[]             @relation("StoreCreator")
   createdRecipes  Recipe[]            @relation("RecipeCreator")
+  createdProductFamilies ProductFamily[] @relation("ProductFamilyCreator")
 
   @@index([email])
 }
@@ -42,6 +43,7 @@ model Product {
   ingredients  ProductIngredient[]
   asIngredient Ingredient?
   recipeIngredients RecipeIngredient[]
+  families     ProductProductFamily[]
 
   @@index([name])
   @@index([isGeneral, createdById])
@@ -339,4 +341,35 @@ model RecipeIngredient {
   @@index([productId])
   @@index([articleId])
   @@index([unitId])
+}
+
+model ProductFamily {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isGeneral   Boolean  @default(false) // false = particular, true = general
+  createdById String?
+  createdBy   User?    @relation("ProductFamilyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  products    ProductProductFamily[]
+
+  @@index([name])
+  @@index([isGeneral, createdById])
+  @@unique([name, isGeneral, createdById]) // Nombre único por usuario/general
+}
+
+model ProductProductFamily {
+  id        String        @id @default(cuid())
+  productId String
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  familyId  String
+  family    ProductFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([productId, familyId])
+  @@index([productId])
+  @@index([familyId])
 }

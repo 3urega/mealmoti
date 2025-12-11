@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import ListItem from '@/components/ListItem';
 import ShareListModal from '@/components/ShareListModal';
 import PurchaseModal from '@/components/PurchaseModal';
@@ -104,6 +105,8 @@ export default function ListDetailPage() {
   const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
+  const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
+  const [genericStoreId, setGenericStoreId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchList();
@@ -111,6 +114,9 @@ export default function ListDetailPage() {
     fetchStores();
     fetchPurchases();
   }, [listId]);
+
+  // Removido el useEffect que establecía el genérico automáticamente
+  // Ahora se establece directamente en fetchStores para evitar conflictos
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -159,9 +165,47 @@ export default function ListDetailPage() {
       const data = await res.json();
       if (res.ok) {
         setStores(data.stores || []);
+        // Buscar el store genérico en la lista
+        const generico = data.stores.find((s: Store) => s.id === 'store-generico' || s.name === 'Genérico');
+        if (generico) {
+          setGenericStoreId(generico.id);
+          // Solo establecer como activo si no hay uno ya seleccionado
+          if (activeStoreId === null) {
+            setActiveStoreId(generico.id);
+          }
+        } else {
+          // Si no existe, intentar crearlo
+          await ensureGenericStore();
+        }
       }
     } catch (err) {
       console.error('Error al cargar comercios:', err);
+    }
+  };
+
+  const ensureGenericStore = async () => {
+    try {
+      // Intentar crear el store genérico si no existe
+      const createRes = await fetch('/api/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Genérico',
+          type: 'other',
+          isGeneral: true,
+        }),
+      });
+      if (createRes.ok) {
+        const created = await createRes.json();
+        setGenericStoreId(created.store.id);
+        // Agregar el nuevo store a la lista sin recargar todo
+        setStores((prev) => [...prev, created.store]);
+        if (activeStoreId === null) {
+          setActiveStoreId(created.store.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error al asegurar store genérico:', err);
     }
   };
 
@@ -414,6 +458,41 @@ export default function ListDetailPage() {
     setShowPurchaseModal(true);
   };
 
+
+  const handleDeletePurchase = async (purchaseId: string) => {
+    const confirmed = await showConfirm(
+      'Eliminar compra',
+      '¿Estás seguro de que quieres eliminar esta compra? Esta acción no se puede deshacer.',
+      {
+        variant: 'danger',
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar',
+      }
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/purchases/${purchaseId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Error al eliminar la compra');
+        return;
+      }
+
+      showToast('success', 'Compra eliminada correctamente');
+      fetchPurchases();
+    } catch (err) {
+      setError('Error de conexión');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -540,6 +619,38 @@ export default function ListDetailPage() {
       {error && (
         <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
           {error}
+        </div>
+      )}
+
+      {/* Selector de Supermercado Activo */}
+      {canEdit && list.status === 'active' && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              🏪 Supermercado activo:
+            </label>
+            <select
+              value={activeStoreId || ''}
+              onChange={(e) => setActiveStoreId(e.target.value || null)}
+              className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              disabled={stores.length === 0}
+            >
+              {stores.length === 0 ? (
+                <option value="">Cargando...</option>
+              ) : (
+                stores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name}
+                  </option>
+                ))
+              )}
+            </select>
+            {activeStoreId && (
+              <span className="text-xs text-gray-600 whitespace-nowrap">
+                Los productos marcados como comprados se asignarán a este supermercado
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -673,6 +784,8 @@ export default function ListDetailPage() {
               {...item}
               unit={item.unitRelation?.symbol || item.unit || 'un'}
               canEdit={canEdit}
+              activeStoreId={activeStoreId}
+              genericStoreId={genericStoreId}
               onUpdate={handleUpdateItem}
               onDelete={handleDeleteItem}
             />
@@ -710,7 +823,7 @@ export default function ListDetailPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {purchases.map((purchase) => {
               const purchaseDate = new Date(purchase.purchasedAt);
               const formattedDate = purchaseDate.toLocaleDateString('es-ES', {
@@ -728,51 +841,74 @@ export default function ListDetailPage() {
               return (
                 <div
                   key={purchase.id}
-                  className="group rounded-lg border-2 border-gray-200 bg-gradient-to-r from-white to-gray-50 p-5 hover:border-green-300 hover:shadow-lg transition-all cursor-pointer"
-                  onClick={() => handleOpenPurchaseModal('edit', purchase)}
+                  className="rounded-lg border-2 border-gray-200 bg-white hover:border-green-300 transition-all"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-gray-900 capitalize text-lg">
-                          {isToday ? 'Hoy' : formattedDate}
-                        </h3>
-                        <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          {formattedTime}
-                        </span>
-                        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
-                          {purchase.items.length} artículo{purchase.items.length !== 1 ? 's' : ''}
-                        </span>
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <Link
+                          href={`/app/lists/${listId}/purchases/${purchase.id}`}
+                          className="block hover:opacity-80 transition-opacity"
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-gray-900 capitalize text-lg">
+                              {isToday ? 'Hoy' : formattedDate}
+                            </h3>
+                            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {formattedTime}
+                            </span>
+                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                              {purchase.items.length} artículo{purchase.items.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          {purchase.notes && (
+                            <p className="text-sm text-gray-600 mb-2 italic">
+                              "{purchase.notes}"
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-2">
+                            Haz clic para ver detalles →
+                          </p>
+                        </Link>
                       </div>
-                      {purchase.notes && (
-                        <p className="text-sm text-gray-600 mb-2 italic">
-                          "{purchase.notes}"
-                        </p>
-                      )}
-                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                        <span>Haz clic para ver detalles</span>
-                      </div>
-                    </div>
-                    <div className="text-right ml-6 flex flex-col items-end">
-                      <div className="text-3xl font-bold text-green-600 mb-1">
-                        {purchase.totalPaid
-                          ? `€${purchase.totalPaid.toFixed(2)}`
-                          : '—'}
-                      </div>
-                      {purchase.totalPaid && (
-                        <div className="text-xs text-gray-500">
-                          Total pagado
+                      <div className="text-right ml-6 flex flex-col items-end gap-2">
+                        <div className="text-2xl font-bold text-green-600">
+                          {purchase.totalPaid
+                            ? `€${purchase.totalPaid.toFixed(2)}`
+                            : '—'}
                         </div>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenPurchaseModal('edit', purchase);
-                        }}
-                        className="mt-3 px-4 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
-                      >
-                        ✏️ Editar
-                      </button>
+                        {purchase.totalPaid && (
+                          <div className="text-xs text-gray-500">
+                            Total pagado
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/app/lists/${listId}/purchases/${purchase.id}`}
+                            className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                          >
+                            👁️ Ver
+                          </Link>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenPurchaseModal('edit', purchase);
+                            }}
+                            className="px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeletePurchase(purchase.id);
+                            }}
+                            className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -790,6 +926,7 @@ export default function ListDetailPage() {
           setSelectedPurchase(null);
         }}
         mode={purchaseModalMode}
+        stores={stores}
         checkedItems={
           purchaseModalMode === 'create'
             ? list.items

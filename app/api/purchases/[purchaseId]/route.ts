@@ -13,6 +13,7 @@ const updatePurchaseSchema = z.object({
         purchasedQuantity: z.number().positive().optional(),
         price: z.number().nonnegative().optional(),
         notes: z.string().optional().nullable(),
+        storeId: z.string().optional().nullable(),
       })
     )
     .optional(),
@@ -179,6 +180,9 @@ export async function PUT(
         if (itemUpdate.notes !== undefined) {
           updateItemData.notes = itemUpdate.notes;
         }
+        if (itemUpdate.storeId !== undefined) {
+          updateItemData.storeId = itemUpdate.storeId || null;
+        }
 
         // Recalcular subtotal si se actualizó precio o cantidad
         if (
@@ -261,6 +265,45 @@ export async function PUT(
       );
     }
     console.error('Error in PUT /api/purchases/[purchaseId]:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ purchaseId: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { purchaseId } = await params;
+    const { hasAccess, canEdit } = await hasAccessToPurchase(user.id, purchaseId);
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: 'No tienes permiso para eliminar esta compra' },
+        { status: 403 }
+      );
+    }
+
+    // Eliminar la compra (los PurchaseItems se eliminarán automáticamente por cascade)
+    await prisma.purchase.delete({
+      where: { id: purchaseId },
+    });
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error('Error in DELETE /api/purchases/[purchaseId]:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

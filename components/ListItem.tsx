@@ -38,6 +38,8 @@ interface ListItemProps {
     name: string;
   } | null;
   canEdit: boolean;
+  activeStoreId?: string | null;
+  genericStoreId?: string | null;
   onUpdate: (id: string, updates: any) => void;
   onDelete: (id: string) => void;
 }
@@ -55,6 +57,8 @@ export default function ListItem({
   notes,
   addedBy,
   canEdit,
+  activeStoreId,
+  genericStoreId,
   onUpdate,
   onDelete,
 }: ListItemProps) {
@@ -75,6 +79,17 @@ export default function ListItem({
     const updates: any = { checked: newChecked };
     if (newChecked && !purchasedAt) {
       updates.purchasedAt = new Date().toISOString();
+      // Asignar el supermercado activo (o genérico por defecto) al marcar como comprado
+      // Priorizar activeStoreId si existe y no está vacío
+      let storeIdToAssign: string | null = null;
+      if (activeStoreId && activeStoreId.trim() !== '' && activeStoreId !== 'null') {
+        storeIdToAssign = activeStoreId;
+      } else if (genericStoreId && genericStoreId.trim() !== '' && genericStoreId !== 'null') {
+        storeIdToAssign = genericStoreId;
+      }
+      if (storeIdToAssign) {
+        updates.storeId = storeIdToAssign;
+      }
     }
     onUpdate(id, updates);
   };

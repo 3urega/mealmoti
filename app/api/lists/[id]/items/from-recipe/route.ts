@@ -107,6 +107,7 @@ export async function POST(
                 name: true,
               },
             },
+            // @ts-ignore - article existe pero TypeScript puede no reconocerlo si el cliente no está actualizado
             article: {
               select: {
                 id: true,

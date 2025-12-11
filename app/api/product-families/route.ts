@@ -3,11 +3,30 @@ import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-const createProductSchema = z.object({
+const createProductFamilySchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().optional(),
   isGeneral: z.boolean().default(false),
 });
+
+async function hasAccessToFamily(
+  userId: string,
+  familyId: string
+): Promise<{ hasAccess: boolean; isOwner: boolean; family: any }> {
+  const family = await prisma.productFamily.findUnique({
+    where: { id: familyId },
+  });
+
+  if (!family) {
+    return { hasAccess: false, isOwner: false, family: null };
+  }
+
+  const isOwner = family.createdById === userId;
+  const isGeneral = family.isGeneral;
+  const hasAccess = isGeneral || isOwner;
+
+  return { hasAccess, isOwner, family };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,8 +38,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const general = searchParams.get('general');
     const search = searchParams.get('search');
-    const familyId = searchParams.get('familyId');
-    const includeFamilies = searchParams.get('includeFamilies') === 'true';
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -41,51 +58,26 @@ export async function GET(request: NextRequest) {
 
     // Búsqueda por nombre
     if (search) {
-      where.name = {
-        contains: search,
-        mode: 'insensitive',
-      };
-    }
-
-    // Filtro por familia
-    if (familyId) {
-      where.families = {
-        some: {
-          familyId: familyId,
+      where.AND = [
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          },
         },
-      };
+      ];
     }
 
     // Obtener total para paginación
-    const total = await prisma.product.count({ where });
+    const total = await prisma.productFamily.count({ where });
 
-    // Obtener productos con conteo de artículos y familias si se solicita
-    const products = await prisma.product.findMany({
+    // Obtener familias
+    const families = await prisma.productFamily.findMany({
       where,
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        isGeneral: true,
-        createdById: true,
-        createdAt: true,
-        families: includeFamilies
-          ? {
-              include: {
-                family: {
-                  select: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    isGeneral: true,
-                  },
-                },
-              },
-            }
-          : false,
+      include: {
         _count: {
           select: {
-            articles: true,
+            products: true,
           },
         },
       },
@@ -96,28 +88,21 @@ export async function GET(request: NextRequest) {
       skip: offset,
     });
 
-    // Formatear respuesta con articlesCount y familias si se incluyen
-    const formattedProducts = products.map((product: typeof products[0]) => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      isGeneral: product.isGeneral,
-      createdById: product.createdById,
-      articlesCount: product._count.articles,
-      families: includeFamilies
-        ? (product.families as any[])?.map((ppf: any) => ({
-            id: ppf.family.id,
-            name: ppf.family.name,
-            description: ppf.family.description,
-            isGeneral: ppf.family.isGeneral,
-          })) || []
-        : undefined,
-      createdAt: product.createdAt,
+    // Formatear respuesta
+    const formattedFamilies = families.map((family) => ({
+      id: family.id,
+      name: family.name,
+      description: family.description,
+      isGeneral: family.isGeneral,
+      createdById: family.createdById,
+      productsCount: family._count.products,
+      createdAt: family.createdAt,
+      updatedAt: family.updatedAt,
     }));
 
     return NextResponse.json(
       {
-        products: formattedProducts,
+        families: formattedFamilies,
         total,
         limit,
         offset,
@@ -125,7 +110,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Error in GET /api/products:', error);
+    console.error('Error in GET /api/product-families:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
@@ -141,10 +126,26 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = createProductSchema.parse(body);
+    const validatedData = createProductFamilySchema.parse(body);
 
-    // Crear producto
-    const product = await prisma.product.create({
+    // Verificar que el nombre sea único para el usuario/general
+    const existingFamily = await prisma.productFamily.findFirst({
+      where: {
+        name: validatedData.name.trim(),
+        isGeneral: validatedData.isGeneral,
+        createdById: validatedData.isGeneral ? null : user.id,
+      },
+    });
+
+    if (existingFamily) {
+      return NextResponse.json(
+        { error: 'Ya existe una familia con ese nombre' },
+        { status: 400 }
+      );
+    }
+
+    // Crear familia
+    const family = await prisma.productFamily.create({
       data: {
         name: validatedData.name.trim(),
         description: validatedData.description?.trim() || null,
@@ -154,7 +155,7 @@ export async function POST(request: NextRequest) {
       include: {
         _count: {
           select: {
-            articles: true,
+            products: true,
           },
         },
       },
@@ -162,14 +163,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        product: {
-          id: product.id,
-          name: product.name,
-          description: product.description,
-          isGeneral: product.isGeneral,
-          createdById: product.createdById,
-          articlesCount: product._count.articles,
-          createdAt: product.createdAt,
+        family: {
+          id: family.id,
+          name: family.name,
+          description: family.description,
+          isGeneral: family.isGeneral,
+          createdById: family.createdById,
+          productsCount: family._count.products,
+          createdAt: family.createdAt,
+          updatedAt: family.updatedAt,
         },
       },
       { status: 201 }
@@ -181,7 +183,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    console.error('Error in POST /api/products:', error);
+    console.error('Error in POST /api/product-families:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

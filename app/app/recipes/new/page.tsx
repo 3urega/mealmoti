@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import SearchableSelect from '@/components/SearchableSelect';
 
 interface Product {
   id: string;
@@ -26,29 +27,8 @@ export default function NewRecipePage() {
   const [prepTime, setPrepTime] = useState('');
   const [cookTime, setCookTime] = useState('');
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    setLoadingProducts(true);
-    try {
-      const res = await fetch('/api/products?limit=200');
-      const data = await res.json();
-      if (res.ok) {
-        setProducts(data.products || []);
-      }
-    } catch (err) {
-      console.error('Error fetching products:', err);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
 
   const addIngredient = () => {
     setIngredients([
@@ -288,24 +268,23 @@ export default function NewRecipePage() {
                 >
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
                     <div className="md:col-span-4">
-                      <label className="block text-xs font-medium text-gray-700">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
                         Producto *
                       </label>
-                      <select
-                        required
-                        value={ingredient.productId}
-                        onChange={(e) =>
-                          updateIngredient(index, 'productId', e.target.value)
+                      <SearchableSelect
+                        value={ingredient.productId || 'all'}
+                        onChange={(value) =>
+                          updateIngredient(
+                            index,
+                            'productId',
+                            value === 'all' ? '' : value
+                          )
                         }
-                        className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                      >
-                        <option value="">Seleccionar producto...</option>
-                        {products.map((product) => (
-                          <option key={product.id} value={product.id}>
-                            {product.name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Buscar producto (mín. 3 caracteres)..."
+                        searchEndpoint="/api/products/search"
+                        minChars={3}
+                        debounceMs={1000}
+                      />
                     </div>
 
                     <div className="md:col-span-2">

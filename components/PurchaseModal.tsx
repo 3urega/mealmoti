@@ -36,10 +36,17 @@ interface Purchase {
   items: PurchaseItem[];
 }
 
+interface Store {
+  id: string;
+  name: string;
+  type: string;
+}
+
 interface PurchaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   mode: 'create' | 'edit';
+  stores?: Store[];
   checkedItems?: Array<{
     id: string;
     article: {
@@ -73,6 +80,7 @@ interface PurchaseModalProps {
       purchasedQuantity?: number;
       price?: number;
       notes?: string | null;
+      storeId?: string | null;
     }>;
   }) => Promise<void>;
 }
@@ -81,6 +89,7 @@ export default function PurchaseModal({
   isOpen,
   onClose,
   mode,
+  stores = [],
   checkedItems = [],
   purchase,
   onSave,
@@ -89,58 +98,68 @@ export default function PurchaseModal({
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [editingItems, setEditingItems] = useState<
-    Record<string, { purchasedQuantity: string; price: string; notes: string }>
+    Record<string, { purchasedQuantity: string; price: string; notes: string; storeId: string }>
   >({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      if (mode === 'create' && checkedItems.length > 0) {
-        // Preparar items desde checkedItems
-        const formattedItems: PurchaseItem[] = checkedItems.map((item) => ({
-          id: `temp-${item.id}`,
-          article: item.article,
-          quantity: item.quantity,
-          purchasedQuantity: item.purchasedQuantity || item.quantity,
-          unit: item.unit,
-          price: item.price || 0,
-          subtotal: (item.purchasedQuantity || item.quantity) * (item.price || 0),
-          store: item.store,
-          notes: item.notes,
-        }));
-        setItems(formattedItems);
-        setPurchasedAt(new Date().toISOString().split('T')[0]);
-        setNotes('');
-
-        // Inicializar editingItems
-        const editing: Record<string, { purchasedQuantity: string; price: string; notes: string }> = {};
-        formattedItems.forEach((item) => {
-          editing[item.id] = {
-            purchasedQuantity: item.purchasedQuantity.toString(),
-            price: item.price.toString(),
-            notes: item.notes || '',
-          };
-        });
-        setEditingItems(editing);
-      } else if (mode === 'edit' && purchase) {
-        setItems(purchase.items);
-        setPurchasedAt(new Date(purchase.purchasedAt).toISOString().split('T')[0]);
-        setNotes(purchase.notes || '');
-
-        // Inicializar editingItems
-        const editing: Record<string, { purchasedQuantity: string; price: string; notes: string }> = {};
-        purchase.items.forEach((item) => {
-          editing[item.id] = {
-            purchasedQuantity: item.purchasedQuantity.toString(),
-            price: item.price.toString(),
-            notes: item.notes || '',
-          };
-        });
-        setEditingItems(editing);
-      }
+    if (!isOpen) {
+      // Limpiar estado cuando se cierra el modal
+      setItems([]);
+      setEditingItems({});
+      setPurchasedAt('');
+      setNotes('');
+      return;
     }
-  }, [isOpen, mode, checkedItems, purchase]);
+
+    if (mode === 'create' && checkedItems && checkedItems.length > 0) {
+      // Preparar items desde checkedItems
+      const formattedItems: PurchaseItem[] = checkedItems.map((item) => ({
+        id: `temp-${item.id}`,
+        article: item.article,
+        quantity: item.quantity,
+        purchasedQuantity: item.purchasedQuantity || item.quantity,
+        unit: item.unit,
+        price: item.price || 0,
+        subtotal: (item.purchasedQuantity || item.quantity) * (item.price || 0),
+        store: item.store,
+        notes: item.notes,
+      }));
+      setItems(formattedItems);
+      setPurchasedAt(new Date().toISOString().split('T')[0]);
+      setNotes('');
+
+      // Inicializar editingItems
+      const editing: Record<string, { purchasedQuantity: string; price: string; notes: string; storeId: string }> = {};
+      formattedItems.forEach((item) => {
+        editing[item.id] = {
+          purchasedQuantity: item.purchasedQuantity.toString(),
+          price: item.price.toString(),
+          notes: item.notes || '',
+          storeId: item.store?.id || '',
+        };
+      });
+      setEditingItems(editing);
+    } else if (mode === 'edit' && purchase) {
+      setItems(purchase.items);
+      setPurchasedAt(new Date(purchase.purchasedAt).toISOString().split('T')[0]);
+      setNotes(purchase.notes || '');
+
+      // Inicializar editingItems
+      const editing: Record<string, { purchasedQuantity: string; price: string; notes: string; storeId: string }> = {};
+      purchase.items.forEach((item) => {
+        editing[item.id] = {
+          purchasedQuantity: item.purchasedQuantity.toString(),
+          price: item.price.toString(),
+          notes: item.notes || '',
+          storeId: item.store?.id || '',
+        };
+      });
+      setEditingItems(editing);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode]); // Solo dependemos de isOpen y mode para evitar loops infinitos
 
   const calculateSubtotal = (itemId: string): number => {
     const editing = editingItems[itemId];
@@ -165,25 +184,69 @@ export default function PurchaseModal({
 
   const handleItemChange = (
     itemId: string,
-    field: 'purchasedQuantity' | 'price' | 'notes',
+    field: 'purchasedQuantity' | 'price' | 'notes' | 'storeId',
     value: string
   ) => {
-    setEditingItems((prev) => ({
-      ...prev,
-      [itemId]: {
-        ...prev[itemId],
-        [field]: value,
-      },
-    }));
+    // Actualizar editingItems
+    setEditingItems((prev) => {
+      const current = prev[itemId];
+      if (!current) {
+        // Si no existe, obtener valores del item original
+        const item = items.find((i) => i.id === itemId);
+        return {
+          ...prev,
+          [itemId]: {
+            purchasedQuantity: item?.purchasedQuantity.toString() || '0',
+            price: item?.price.toString() || '0',
+            notes: item?.notes || '',
+            storeId: item?.store?.id || '',
+            [field]: value,
+          },
+        };
+      }
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          [field]: value,
+        },
+      };
+    });
 
     // Actualizar subtotal en tiempo real para modo edición
     if (mode === 'edit' && (field === 'purchasedQuantity' || field === 'price')) {
       setItems((prev) =>
-        prev.map((item) =>
-          item.id === itemId
-            ? { ...item, subtotal: calculateSubtotal(itemId) }
-            : item
-        )
+        prev.map((item) => {
+          if (item.id === itemId) {
+            const editing = editingItems[itemId] || {
+              purchasedQuantity: item.purchasedQuantity.toString(),
+              price: item.price.toString(),
+            };
+            const newQty = field === 'purchasedQuantity' ? parseFloat(value) : parseFloat(editing.purchasedQuantity);
+            const newPrice = field === 'price' ? parseFloat(value) : parseFloat(editing.price);
+            return {
+              ...item,
+              subtotal: (newQty || 0) * (newPrice || 0),
+            };
+          }
+          return item;
+        })
+      );
+    }
+
+    // Actualizar el store en el item para mostrar el nombre
+    if (field === 'storeId') {
+      const selectedStore = stores.find((s) => s.id === value);
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.id === itemId) {
+            return {
+              ...item,
+              store: selectedStore || null,
+            };
+          }
+          return item;
+        })
       );
     }
   };
@@ -207,6 +270,7 @@ export default function PurchaseModal({
             purchasedQuantity: parseFloat(editing.purchasedQuantity) || item.purchasedQuantity,
             price: parseFloat(editing.price) || item.price,
             notes: editing.notes || null,
+            storeId: editing.storeId || null,
           };
         });
 
@@ -304,6 +368,7 @@ export default function PurchaseModal({
                 purchasedQuantity: item.purchasedQuantity.toString(),
                 price: item.price.toString(),
                 notes: item.notes || '',
+                storeId: item.store?.id || '',
               };
               const subtotal = mode === 'edit' ? calculateSubtotal(item.id) : item.subtotal;
 
@@ -369,20 +434,41 @@ export default function PurchaseModal({
                   </div>
 
                   {mode === 'edit' && (
-                    <div className="mt-3">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Notas
-                      </label>
-                      <input
-                        type="text"
-                        value={editing.notes}
-                        onChange={(e) =>
-                          handleItemChange(item.id, 'notes', e.target.value)
-                        }
-                        placeholder="Notas opcionales..."
-                        className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                      />
-                    </div>
+                    <>
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Comercio
+                        </label>
+                        <select
+                          value={editing.storeId || ''}
+                          onChange={(e) =>
+                            handleItemChange(item.id, 'storeId', e.target.value)
+                          }
+                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                        >
+                          <option value="">Sin comercio</option>
+                          {stores.map((store) => (
+                            <option key={store.id} value={store.id}>
+                              {store.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Notas
+                        </label>
+                        <input
+                          type="text"
+                          value={editing.notes}
+                          onChange={(e) =>
+                            handleItemChange(item.id, 'notes', e.target.value)
+                          }
+                          placeholder="Notas opcionales..."
+                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
               );

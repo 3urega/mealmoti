@@ -48,7 +48,7 @@ export async function GET(
       );
     }
 
-    // Obtener producto con artículos e ingredientes
+    // Obtener producto con artículos, ingredientes y familias
     const productWithDetails = await prisma.product.findUnique({
       where: { id },
       include: {
@@ -73,6 +73,24 @@ export async function GET(
                 name: true,
                 type: true,
               },
+            },
+          },
+        },
+        families: {
+          include: {
+            family: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                isGeneral: true,
+                createdById: true,
+              },
+            },
+          },
+          orderBy: {
+            family: {
+              name: 'asc',
             },
           },
         },
@@ -104,6 +122,13 @@ export async function GET(
         name: pi.ingredient.name,
         type: pi.ingredient.type,
         isOptional: pi.isOptional,
+      })),
+      families: productWithDetails.families.map((ppf: typeof productWithDetails.families[0]) => ({
+        id: ppf.family.id,
+        name: ppf.family.name,
+        description: ppf.family.description,
+        isGeneral: ppf.family.isGeneral,
+        createdById: ppf.family.createdById,
       })),
       articlesCount: productWithDetails._count.articles,
       createdAt: productWithDetails.createdAt,

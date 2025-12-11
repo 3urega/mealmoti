@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import SearchableArticleSelect from '@/components/SearchableArticleSelect';
 
 interface Article {
   id: string;
@@ -41,6 +42,13 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedArticleId, setSelectedArticleId] = useState('');
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newArticleName, setNewArticleName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   useEffect(() => {
     fetchProduct();
@@ -60,6 +68,84 @@ export default function ProductDetailPage() {
       setError('Error de conexión');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAssignArticle = async () => {
+    if (!selectedArticleId) {
+      setAssignError('Por favor selecciona un artículo');
+      return;
+    }
+
+    setAssigning(true);
+    setAssignError('');
+
+    try {
+      const res = await fetch(`/api/articles/${selectedArticleId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId: productId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAssignError(data.error || 'Error al asignar el artículo');
+        return;
+      }
+
+      // Limpiar selección y recargar producto
+      setSelectedArticleId('');
+      await fetchProduct();
+    } catch (err) {
+      setAssignError('Error de conexión');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleCreateArticle = async () => {
+    if (!newArticleName.trim()) {
+      setCreateError('El nombre del artículo es requerido');
+      return;
+    }
+
+    setCreating(true);
+    setCreateError('');
+
+    try {
+      const res = await fetch('/api/articles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newArticleName.trim(),
+          productId: productId,
+          brand: 'genérico',
+          isGeneral: false,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCreateError(data.error || 'Error al crear el artículo');
+        return;
+      }
+
+      // Limpiar formulario, cerrar modal y recargar producto
+      setNewArticleName('');
+      setShowCreateModal(false);
+      await fetchProduct();
+    } catch (err) {
+      setCreateError('Error de conexión');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -122,6 +208,44 @@ export default function ProductDetailPage() {
             >
               Ver todos →
             </Link>
+          </div>
+
+          {/* Selector para asignar artículos */}
+          <div className="mb-4 space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Asignar artículo
+            </label>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <SearchableArticleSelect
+                  value={selectedArticleId}
+                  onChange={setSelectedArticleId}
+                  placeholder="Buscar artículo sin producto asignado (mín. 3 caracteres)..."
+                  searchEndpoint="/api/articles/search"
+                  minChars={3}
+                  debounceMs={1000}
+                  excludeProductId={productId}
+                />
+              </div>
+              <button
+                onClick={handleAssignArticle}
+                disabled={!selectedArticleId || assigning}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {assigning ? 'Asignando...' : 'Asignar'}
+              </button>
+            </div>
+            {assignError && (
+              <p className="text-sm text-red-600">{assignError}</p>
+            )}
+            <div className="mt-2">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                + Crear nuevo artículo
+              </button>
+            </div>
           </div>
 
           {product.articles.length === 0 ? (
@@ -196,6 +320,66 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Modal para crear nuevo artículo */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+              Crear nuevo artículo
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Nombre del artículo
+                </label>
+                <input
+                  type="text"
+                  value={newArticleName}
+                  onChange={(e) => {
+                    setNewArticleName(e.target.value);
+                    setCreateError('');
+                  }}
+                  placeholder="Ej: Leche entera"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCreateArticle();
+                    } else if (e.key === 'Escape') {
+                      setShowCreateModal(false);
+                      setNewArticleName('');
+                      setCreateError('');
+                    }
+                  }}
+                />
+              </div>
+              {createError && (
+                <p className="text-sm text-red-600">{createError}</p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setNewArticleName('');
+                    setCreateError('');
+                  }}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateArticle}
+                  disabled={!newArticleName.trim() || creating}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {creating ? 'Creando...' : 'Crear y asignar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

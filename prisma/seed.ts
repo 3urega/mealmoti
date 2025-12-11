@@ -106,6 +106,37 @@ async function main() {
 
   console.log('✅ Productos creados:', [productLeche.name, productPan.name, productHuevos.name, productTomates.name].join(', '));
 
+  // Crear familias de productos predefinidas (generales)
+  const families = [
+    { id: 'family-yogur', name: 'Yogur', description: 'Productos lácteos fermentados' },
+    { id: 'family-carne', name: 'Carne', description: 'Carnes y derivados' },
+    { id: 'family-pescado', name: 'Pescado', description: 'Pescados y mariscos' },
+    { id: 'family-frutas', name: 'Frutas', description: 'Frutas frescas' },
+    { id: 'family-verduras', name: 'Verduras', description: 'Verduras y hortalizas' },
+    { id: 'family-lacteos', name: 'Lácteos', description: 'Productos lácteos' },
+    { id: 'family-panaderia', name: 'Panadería', description: 'Productos de panadería' },
+    { id: 'family-bebidas', name: 'Bebidas', description: 'Bebidas y refrescos' },
+    { id: 'family-cereales', name: 'Cereales', description: 'Cereales y granos' },
+    { id: 'family-aceites', name: 'Aceites', description: 'Aceites y grasas' },
+  ];
+
+  const createdFamilies = [];
+  for (const family of families) {
+    const created = await prisma.productFamily.upsert({
+      where: { id: family.id },
+      update: {},
+      create: {
+        id: family.id,
+        name: family.name,
+        description: family.description,
+        isGeneral: true,
+      },
+    });
+    createdFamilies.push(created);
+  }
+
+  console.log('✅ Familias de productos creadas:', createdFamilies.map(f => f.name).join(', '));
+
   // Crear artículos de ejemplo
   const articleLeche = await prisma.article.upsert({
     where: { id: 'article-leche' },
@@ -263,6 +294,20 @@ async function main() {
 
   console.log('✅ Ingredientes creados:', [ingredientAzucar.name, ingredientSal.name].join(', '));
 
+  // Crear store "Genérico" por defecto
+  const storeGenerico = await prisma.store.upsert({
+    where: { id: 'store-generico' },
+    update: {},
+    create: {
+      id: 'store-generico',
+      name: 'Genérico',
+      type: 'other',
+      isGeneral: true,
+    },
+  });
+
+  console.log('✅ Store genérico creado:', storeGenerico.name);
+
   // Crear un comercio de ejemplo
   const storeMercadona = await prisma.store.upsert({
     where: { id: 'store-mercadona' },
@@ -323,6 +368,7 @@ async function main() {
   console.log('   - 1 Lista de compra con 4 ítems');
   console.log('   - 2 Ingredientes');
   console.log('   - 1 Comercio');
+  console.log(`   - ${createdFamilies.length} Familias de productos`);
 }
 
 main()
