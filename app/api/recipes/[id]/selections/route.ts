@@ -119,7 +119,16 @@ export async function POST(
     const recipe = await prisma.recipe.findUnique({
       where: { id: recipeId },
       include: {
-        ingredients: true,
+        ingredients: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
 
