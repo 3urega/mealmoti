@@ -16,14 +16,14 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relaciones
-  shoppingLists   ShoppingList[]      @relation("ListOwner")
-  sharedLists     ShoppingListShare[]
-  listItems       Item[]
-  createdProducts Product[]           @relation("ProductCreator")
-  createdArticles Article[]           @relation("ArticleCreator")
-  createdStores   Store[]             @relation("StoreCreator")
-  createdRecipes  Recipe[]            @relation("RecipeCreator")
-  createdProductFamilies ProductFamily[] @relation("ProductFamilyCreator")
+  shoppingLists          ShoppingList[]      @relation("ListOwner")
+  sharedLists            ShoppingListShare[]
+  listItems              Item[]
+  createdProducts        Product[]           @relation("ProductCreator")
+  createdArticles        Article[]           @relation("ArticleCreator")
+  createdStores          Store[]             @relation("StoreCreator")
+  createdRecipes         Recipe[]            @relation("RecipeCreator")
+  createdProductFamilies ProductFamily[]     @relation("ProductFamilyCreator")
 
   @@index([email])
 }
@@ -39,11 +39,11 @@ model Product {
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  articles     Article[]
-  ingredients  ProductIngredient[]
-  asIngredient Ingredient?
+  articles          Article[]
+  ingredients       ProductIngredient[]
+  asIngredient      Ingredient?
   recipeIngredients RecipeIngredient[]
-  families     ProductProductFamily[]
+  families          ProductProductFamily[]
 
   @@index([name])
   @@index([isGeneral, createdById])
@@ -90,7 +90,7 @@ model Article {
   product        Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
   brand          String   @default("genérico") // Siempre tiene marca, por defecto "genérico"
   variant        String? // Variedad específica (ej: "5L", "integral")
-  weightInGrams  Float?   // Peso del producto contenido en gramos (ej: 500 para 500g)
+  weightInGrams  Float? // Peso del producto contenido en gramos (ej: 500 para 500g)
   suggestedPrice Float?
   isGeneral      Boolean  @default(false) // false = particular, true = general
   createdById    String?
@@ -99,11 +99,11 @@ model Article {
   updatedAt      DateTime @updatedAt
 
   // Relaciones
-  items              Item[]
-  stores             ArticleStore[]
-  ingredients        ArticleIngredient[]
-  recipeIngredients  RecipeIngredient[]
-  purchaseItems      PurchaseItem[]
+  items                Item[]
+  stores               ArticleStore[]
+  ingredients          ArticleIngredient[]
+  recipeIngredients    RecipeIngredient[]
+  purchaseItems        PurchaseItem[]
   recipeSelectionItems RecipeArticleSelectionItem[]
 
   @@index([name])
@@ -197,9 +197,9 @@ model Item {
   articleId         String
   article           Article      @relation(fields: [articleId], references: [id], onDelete: Restrict)
   quantity          Float
-  unit              String?  // Temporal: se eliminará después de migración
+  unit              String? // Temporal: se eliminará después de migración
   unitId            String?
-  unitRelation      Unit?    @relation("ItemUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  unitRelation      Unit?        @relation("ItemUnit", fields: [unitId], references: [id], onDelete: Restrict)
   purchasedQuantity Float?
   price             Float? // Precio de compra real
   checked           Boolean      @default(false)
@@ -223,14 +223,14 @@ model Item {
 }
 
 model Purchase {
-  id            String   @id @default(cuid())
+  id             String       @id @default(cuid())
   shoppingListId String
   shoppingList   ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
-  totalPaid     Float?
-  purchasedAt   DateTime @default(now())
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  totalPaid      Float?
+  purchasedAt    DateTime     @default(now())
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   // Relaciones
   items PurchaseItem[]
@@ -240,24 +240,24 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id               String   @id @default(cuid())
-  purchaseId       String
-  purchase         Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  itemId           String?  // Referencia al Item original para trazabilidad
-  item             Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
-  articleId        String
-  article          Article  @relation(fields: [articleId], references: [id], onDelete: Restrict)
-  quantity         Float    // Cantidad solicitada originalmente
-  purchasedQuantity Float   // Cantidad realmente comprada
-  unitId           String?
-  unit             Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  price            Float    // Precio unitario pagado
-  subtotal         Float    // Calculado: purchasedQuantity * price
-  storeId          String?
-  store            Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String   @id @default(cuid())
+  purchaseId        String
+  purchase          Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  itemId            String? // Referencia al Item original para trazabilidad
+  item              Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  articleId         String
+  article           Article  @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  quantity          Float // Cantidad solicitada originalmente
+  purchasedQuantity Float // Cantidad realmente comprada
+  unitId            String?
+  unit              Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  price             Float // Precio unitario pagado
+  subtotal          Float // Calculado: purchasedQuantity * price
+  storeId           String?
+  store             Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([purchaseId])
   @@index([articleId])
@@ -281,7 +281,7 @@ model ShoppingListShare {
 model Unit {
   id          String   @id @default(cuid())
   name        String   @unique
-  symbol      String   // Símbolo de la unidad (ej: "kg", "gr", "un")
+  symbol      String // Símbolo de la unidad (ej: "kg", "gr", "un")
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -296,26 +296,26 @@ model Unit {
 }
 
 model Recipe {
-  id              String   @id @default(cuid())
-  name            String
-  description     String?
-  instructions    String?
-  servings        Int?
-  prepTime        Int?    // minutos
-  cookTime        Int?    // minutos
-  isGeneral       Boolean  @default(false)
-  createdById     String?
-  createdBy       User?    @relation("RecipeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  instructions     String?
+  servings         Int?
+  prepTime         Int? // minutos
+  cookTime         Int? // minutos
+  isGeneral        Boolean  @default(false)
+  createdById      String?
+  createdBy        User?    @relation("RecipeCreator", fields: [createdById], references: [id], onDelete: SetNull)
   originalRecipeId String?
-  originalRecipe  Recipe?  @relation("RecipeCopy", fields: [originalRecipeId], references: [id], onDelete: SetNull)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  originalRecipe   Recipe?  @relation("RecipeCopy", fields: [originalRecipeId], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relaciones
-  ingredients     RecipeIngredient[]
-  shoppingLists   ShoppingList[]
-  copiedRecipes   Recipe[] @relation("RecipeCopy")
-  selections      RecipeArticleSelection[]
+  ingredients   RecipeIngredient[]
+  shoppingLists ShoppingList[]
+  copiedRecipes Recipe[]                 @relation("RecipeCopy")
+  selections    RecipeArticleSelection[]
 
   @@index([name])
   @@index([isGeneral, createdById])
@@ -323,21 +323,21 @@ model Recipe {
 }
 
 model RecipeIngredient {
-  id          String   @id @default(cuid())
-  recipeId    String
-  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  articleId   String?
-  article     Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
-  quantity    Float
-  unit        String?  // Temporal: se eliminará después de migración
-  unitId      String?
-  unitRelation Unit?    @relation("RecipeIngredientUnit", fields: [unitId], references: [id], onDelete: Restrict)
-  isOptional  Boolean  @default(false)
-  notes       String?
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
+  id             String                       @id @default(cuid())
+  recipeId       String
+  recipe         Recipe                       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product                      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  articleId      String?
+  article        Article?                     @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  quantity       Float
+  unit           String? // Temporal: se eliminará después de migración
+  unitId         String?
+  unitRelation   Unit?                        @relation("RecipeIngredientUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  isOptional     Boolean                      @default(false)
+  notes          String?
+  order          Int                          @default(0)
+  createdAt      DateTime                     @default(now())
   selectionItems RecipeArticleSelectionItem[]
 
   @@index([recipeId])
@@ -357,11 +357,11 @@ model ProductFamily {
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  products    ProductProductFamily[]
+  products ProductProductFamily[]
 
+  @@unique([name, isGeneral, createdById]) // Nombre único por usuario/general
   @@index([name])
   @@index([isGeneral, createdById])
-  @@unique([name, isGeneral, createdById]) // Nombre único por usuario/general
 }
 
 model ProductProductFamily {
@@ -378,29 +378,29 @@ model ProductProductFamily {
 }
 
 model RecipeArticleSelection {
-  id          String   @id @default(cuid())
-  recipeId    String
-  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  name        String?  // Nombre opcional para la selección (ej: "Selección básica", "Selección premium")
-  isActive    Boolean  @default(false) // Solo una selección activa por receta
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  items       RecipeArticleSelectionItem[]
-  
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name      String? // Nombre opcional para la selección (ej: "Selección básica", "Selección premium")
+  isActive  Boolean  @default(false) // Solo una selección activa por receta
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items RecipeArticleSelectionItem[]
+
   @@index([recipeId])
   @@index([recipeId, isActive])
 }
 
 model RecipeArticleSelectionItem {
-  id                    String   @id @default(cuid())
-  selectionId           String
-  selection             RecipeArticleSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
-  recipeIngredientId    String   // Referencia al RecipeIngredient
-  recipeIngredient      RecipeIngredient @relation(fields: [recipeIngredientId], references: [id], onDelete: Cascade)
-  articleId             String
-  article               Article  @relation(fields: [articleId], references: [id], onDelete: Restrict)
-  
+  id                 String                 @id @default(cuid())
+  selectionId        String
+  selection          RecipeArticleSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  recipeIngredientId String // Referencia al RecipeIngredient
+  recipeIngredient   RecipeIngredient       @relation(fields: [recipeIngredientId], references: [id], onDelete: Cascade)
+  articleId          String
+  article            Article                @relation(fields: [articleId], references: [id], onDelete: Restrict)
+
   @@unique([selectionId, recipeIngredientId])
   @@index([selectionId])
   @@index([recipeIngredientId])
