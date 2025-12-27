@@ -52,10 +52,14 @@ export default function SearchableArticleSelect({
     setLoading(true);
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        let url = `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}&limit=20`;
+        // Construir URL preservando parámetros existentes en searchEndpoint
+        const urlObj = new URL(searchEndpoint, window.location.origin);
+        urlObj.searchParams.set('q', searchQuery);
+        urlObj.searchParams.set('limit', '20');
         if (excludeProductId) {
-          url += `&excludeProductId=${encodeURIComponent(excludeProductId)}`;
+          urlObj.searchParams.set('excludeProductId', excludeProductId);
         }
+        const url = urlObj.pathname + urlObj.search;
         const res = await fetch(url);
         const data = await res.json();
         if (res.ok) {
@@ -78,29 +82,35 @@ export default function SearchableArticleSelect({
 
   // Cargar opción seleccionada si hay un value
   useEffect(() => {
-    if (value && value !== '' && !selectedOption) {
-      // Si hay un value pero no hay selectedOption, buscar el artículo
-      fetch(`/api/articles/${value}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.article) {
-            const articleName = `${data.article.name}${data.article.brand ? ` - ${data.article.brand}` : ''}${data.article.variant ? ` (${data.article.variant})` : ''}`;
-            setSelectedOption({
-              id: data.article.id,
-              name: articleName,
-              description: data.article.suggestedPrice ? `€${data.article.suggestedPrice.toFixed(2)}` : null,
-            });
-            setSearchQuery(articleName);
-          }
-        })
-        .catch(() => {
-          // Si falla, simplemente no mostrar nada
-        });
-    } else if (!value || value === '') {
-      setSelectedOption(null);
-      setSearchQuery('');
+    if (value && value !== '') {
+      // Solo cargar si no hay opción seleccionada o el ID no coincide
+      const shouldLoad = !selectedOption || selectedOption.id !== value;
+      if (shouldLoad) {
+        fetch(`/api/articles/${value}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.article && data.article.id === value) {
+              const articleName = `${data.article.name}${data.article.brand ? ` - ${data.article.brand}` : ''}${data.article.variant ? ` (${data.article.variant})` : ''}`;
+              setSelectedOption({
+                id: data.article.id,
+                name: articleName,
+                description: data.article.suggestedPrice ? `€${data.article.suggestedPrice.toFixed(2)}` : null,
+              });
+              setSearchQuery(articleName);
+            }
+          })
+          .catch(() => {
+            // Si falla, simplemente no mostrar nada
+          });
+      }
+    } else {
+      if (selectedOption) {
+        setSelectedOption(null);
+        setSearchQuery('');
+      }
     }
-  }, [value, selectedOption]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {

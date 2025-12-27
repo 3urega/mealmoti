@@ -13,16 +13,16 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q') || '';
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
     const excludeProductId = searchParams.get('excludeProductId'); // Para excluir artículos ya asociados a un producto específico
+    const productId = searchParams.get('productId'); // Para filtrar por producto específico
 
     // Solo buscar si hay al menos 3 caracteres
     if (query.length < 3) {
       return NextResponse.json({ articles: [] }, { status: 200 });
     }
 
-    // Búsqueda de artículos sin producto asignado (productId es null)
-    // y que el usuario tenga acceso (generales o propios)
+    // Búsqueda de artículos que el usuario tenga acceso (generales o propios)
+    // Si excludeProductId está presente, solo buscar artículos sin producto asignado
     const where: any = {
-      productId: null, // Solo artículos sin producto asignado
       AND: [
         {
           OR: [
@@ -32,6 +32,14 @@ export async function GET(request: NextRequest) {
         },
       ],
     };
+
+    // Filtrar por producto si se especifica productId
+    if (productId) {
+      where.productId = productId;
+    } else if (excludeProductId) {
+      // Solo filtrar por productId null si se especifica excludeProductId y no hay productId
+      where.productId = null;
+    }
 
     // Búsqueda por nombre o marca
     if (query) {
@@ -51,6 +59,12 @@ export async function GET(request: NextRequest) {
         brand: true,
         variant: true,
         suggestedPrice: true,
+        product: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
       orderBy: {
         name: 'asc',
@@ -62,7 +76,7 @@ export async function GET(request: NextRequest) {
     const formattedArticles = articles.map((article) => ({
       id: article.id,
       name: `${article.name}${article.brand ? ` - ${article.brand}` : ''}${article.variant ? ` (${article.variant})` : ''}`,
-      description: article.suggestedPrice ? `€${article.suggestedPrice.toFixed(2)}` : null,
+      description: article.product ? `${article.product.name}${article.suggestedPrice ? ` - €${article.suggestedPrice.toFixed(2)}` : ''}` : (article.suggestedPrice ? `€${article.suggestedPrice.toFixed(2)}` : null),
     }));
 
     return NextResponse.json({ articles: formattedArticles }, { status: 200 });

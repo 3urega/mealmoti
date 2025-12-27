@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ArticleModal from '@/components/ArticleModal';
+import BulkArticleModal from '@/components/BulkArticleModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import SearchableSelect from '@/components/SearchableSelect';
 
@@ -48,6 +49,7 @@ export default function ArticlesPage() {
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingArticle, setDeletingArticle] = useState<Article | null>(null);
@@ -189,6 +191,7 @@ export default function ArticlesPage() {
 
   const handleModalSuccess = () => {
     setShowModal(false);
+    setShowBulkModal(false);
     setEditingArticle(null);
     fetchArticles();
   };
@@ -210,12 +213,20 @@ export default function ArticlesPage() {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Gestión de Artículos</h1>
-        <button
-          onClick={handleCreateClick}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Nuevo Artículo
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowBulkModal(true)}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            Crear Múltiples
+          </button>
+          <button
+            onClick={handleCreateClick}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Nuevo Artículo
+          </button>
+        </div>
       </div>
 
       {/* Búsqueda y Filtros */}
@@ -456,6 +467,13 @@ export default function ArticlesPage() {
           setEditingArticle(null);
         }}
         article={editingArticle}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Modal de Crear Múltiples */}
+      <BulkArticleModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
         onSuccess={handleModalSuccess}
       />
 

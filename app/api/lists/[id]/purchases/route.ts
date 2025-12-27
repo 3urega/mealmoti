@@ -6,6 +6,17 @@ import { z } from 'zod';
 const createPurchaseSchema = z.object({
   purchasedAt: z.string().datetime().optional(),
   notes: z.string().optional(),
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        purchasedQuantity: z.number().positive().optional(),
+        price: z.number().nonnegative().optional(),
+        notes: z.string().optional().nullable(),
+        storeId: z.string().optional().nullable(),
+      })
+    )
+    .optional(),
 });
 
 async function hasAccessToList(
@@ -97,12 +108,22 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { purchasedAt, notes } = createPurchaseSchema.parse(body);
+    const { purchasedAt, notes, items: itemsFromRequest } = createPurchaseSchema.parse(body);
+
+    // Crear un mapa de items editados por ID si vienen en la request
+    const editedItemsMap = new Map<string, { id: string; purchasedQuantity?: number; price?: number; notes?: string | null; storeId?: string | null }>();
+    if (itemsFromRequest) {
+      itemsFromRequest.forEach((editedItem) => {
+        editedItemsMap.set(editedItem.id, editedItem);
+      });
+    }
 
     // Crear PurchaseItems con datos de los items comprados
     const purchaseItemsData = checkedItems.map((item) => {
-      const purchasedQty = item.purchasedQuantity || item.quantity;
-      const price = item.price || 0;
+      // Si hay datos editados para este item, usarlos; si no, usar los valores del item
+      const editedItem = editedItemsMap.get(item.id);
+      const purchasedQty = editedItem?.purchasedQuantity ?? item.purchasedQuantity ?? item.quantity;
+      const price = editedItem?.price ?? item.price ?? 0;
       const subtotal = purchasedQty * price;
 
       return {
@@ -111,10 +132,10 @@ export async function POST(
         quantity: item.quantity,
         purchasedQuantity: purchasedQty,
         unitId: item.unitId,
-        price: price, // Puede ser 0 si no tiene precio, se puede editar después
-        subtotal: subtotal,
-        storeId: item.storeId,
-        notes: item.notes,
+        price: price, // Precio unitario
+        subtotal: subtotal, // Precio total pagado (precio unitario * cantidad comprada)
+        storeId: editedItem?.storeId ?? item.storeId ?? null,
+        notes: editedItem?.notes ?? item.notes ?? null,
       };
     });
 

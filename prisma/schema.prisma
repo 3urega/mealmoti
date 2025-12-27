@@ -104,6 +104,7 @@ model Article {
   ingredients        ArticleIngredient[]
   recipeIngredients  RecipeIngredient[]
   purchaseItems      PurchaseItem[]
+  recipeSelectionItems RecipeArticleSelectionItem[]
 
   @@index([name])
   @@index([productId])
@@ -314,6 +315,7 @@ model Recipe {
   ingredients     RecipeIngredient[]
   shoppingLists   ShoppingList[]
   copiedRecipes   Recipe[] @relation("RecipeCopy")
+  selections      RecipeArticleSelection[]
 
   @@index([name])
   @@index([isGeneral, createdById])
@@ -336,6 +338,7 @@ model RecipeIngredient {
   notes       String?
   order       Int      @default(0)
   createdAt   DateTime @default(now())
+  selectionItems RecipeArticleSelectionItem[]
 
   @@index([recipeId])
   @@index([productId])
@@ -372,4 +375,33 @@ model ProductProductFamily {
   @@unique([productId, familyId])
   @@index([productId])
   @@index([familyId])
+}
+
+model RecipeArticleSelection {
+  id          String   @id @default(cuid())
+  recipeId    String
+  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name        String?  // Nombre opcional para la selección (ej: "Selección básica", "Selección premium")
+  isActive    Boolean  @default(false) // Solo una selección activa por receta
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  items       RecipeArticleSelectionItem[]
+  
+  @@index([recipeId])
+  @@index([recipeId, isActive])
+}
+
+model RecipeArticleSelectionItem {
+  id                    String   @id @default(cuid())
+  selectionId           String
+  selection             RecipeArticleSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  recipeIngredientId    String   // Referencia al RecipeIngredient
+  recipeIngredient      RecipeIngredient @relation(fields: [recipeIngredientId], references: [id], onDelete: Cascade)
+  articleId             String
+  article               Article  @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  
+  @@unique([selectionId, recipeIngredientId])
+  @@index([selectionId])
+  @@index([recipeIngredientId])
 }

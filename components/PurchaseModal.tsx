@@ -257,9 +257,22 @@ export default function PurchaseModal({
 
     try {
       if (mode === 'create') {
+        // En modo creación, también enviar items con precios y cantidades editados
+        const itemsToCreate = items.map((item) => {
+          const editing = editingItems[item.id];
+          return {
+            id: item.id.replace('temp-', ''), // Remover el prefijo temporal
+            purchasedQuantity: parseFloat(editing.purchasedQuantity) || item.purchasedQuantity,
+            price: parseFloat(editing.price) || item.price,
+            notes: editing.notes || null,
+            storeId: editing.storeId || null,
+          };
+        });
+
         await onSave({
           purchasedAt: new Date(purchasedAt).toISOString(),
           notes: notes || undefined,
+          items: itemsToCreate,
         });
       } else {
         // Modo edición: enviar items actualizados
@@ -391,7 +404,7 @@ export default function PurchaseModal({
                       <div className="text-lg font-bold text-green-600">
                         €{subtotal.toFixed(2)}
                       </div>
-                      <div className="text-xs text-gray-500">Subtotal</div>
+                      <div className="text-xs text-gray-500">Total</div>
                     </div>
                   </div>
 

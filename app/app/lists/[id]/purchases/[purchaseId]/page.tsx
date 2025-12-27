@@ -293,7 +293,7 @@ export default function PurchaseDetailPage() {
                       Precio Unit.
                     </th>
                     <th className="text-right py-3 px-6 text-sm font-semibold text-gray-700">
-                      Subtotal
+                      Total
                     </th>
                   </tr>
                 </thead>

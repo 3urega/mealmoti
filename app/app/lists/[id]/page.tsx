@@ -6,6 +6,8 @@ import Link from 'next/link';
 import ListItem from '@/components/ListItem';
 import ShareListModal from '@/components/ShareListModal';
 import PurchaseModal from '@/components/PurchaseModal';
+import BulkItemModal from '@/components/BulkItemModal';
+import SearchableArticleSelect from '@/components/SearchableArticleSelect';
 import { useNotification } from '@/contexts/NotificationContext';
 
 interface Article {
@@ -85,16 +87,16 @@ export default function ListDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [newItemArticleId, setNewItemArticleId] = useState('');
   const [newItemStoreId, setNewItemStoreId] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('');
-  const [newItemUnit, setNewItemUnit] = useState('unidades');
+  const [newItemUnitId, setNewItemUnitId] = useState('');
   const [newItemNotes, setNewItemNotes] = useState('');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
-  const [articles, setArticles] = useState<Article[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
-  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [units, setUnits] = useState<Array<{ id: string; name: string; symbol: string }>>([]);
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     email: string;
@@ -110,9 +112,9 @@ export default function ListDetailPage() {
 
   useEffect(() => {
     fetchList();
-    fetchArticles();
     fetchStores();
     fetchPurchases();
+    fetchUnits();
   }, [listId]);
 
   // Removido el useEffect que establecía el genérico automáticamente
@@ -144,20 +146,6 @@ export default function ListDetailPage() {
     }
   };
 
-  const fetchArticles = async () => {
-    setLoadingArticles(true);
-    try {
-      const res = await fetch('/api/articles?limit=100');
-      const data = await res.json();
-      if (res.ok) {
-        setArticles(data.articles || []);
-      }
-    } catch (err) {
-      console.error('Error al cargar artículos:', err);
-    } finally {
-      setLoadingArticles(false);
-    }
-  };
 
   const fetchStores = async () => {
     try {
@@ -209,6 +197,23 @@ export default function ListDetailPage() {
     }
   };
 
+  const fetchUnits = async () => {
+    try {
+      const res = await fetch('/api/units');
+      const data = await res.json();
+      if (res.ok) {
+        setUnits(data.units || []);
+        // Establecer unidad por defecto "unidades"
+        const defaultUnit = data.units.find((u: { name: string }) => u.name === 'unidades');
+        if (defaultUnit) {
+          setNewItemUnitId(defaultUnit.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error al cargar unidades:', err);
+    }
+  };
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -233,7 +238,7 @@ export default function ListDetailPage() {
         body: JSON.stringify({
           articleId: newItemArticleId,
           quantity: quantity,
-          unit: newItemUnit || 'unidades',
+          unitId: newItemUnitId || undefined,
           storeId: newItemStoreId || undefined,
           notes: newItemNotes || undefined,
         }),
@@ -250,7 +255,9 @@ export default function ListDetailPage() {
       setNewItemArticleId('');
       setNewItemStoreId('');
       setNewItemQuantity('');
-      setNewItemUnit('unidades');
+      // Restaurar unidad por defecto
+      const defaultUnit = units.find((u) => u.name === 'unidades');
+      setNewItemUnitId(defaultUnit?.id || '');
       setNewItemNotes('');
       setShowAddForm(false);
       fetchList();
@@ -405,6 +412,13 @@ export default function ListDetailPage() {
   const handleCreatePurchase = async (data: {
     purchasedAt: string;
     notes?: string;
+    items?: Array<{
+      id: string;
+      purchasedQuantity?: number;
+      price?: number;
+      notes?: string | null;
+      storeId?: string | null;
+    }>;
   }) => {
     const res = await fetch(`/api/lists/${listId}/purchases`, {
       method: 'POST',
@@ -611,6 +625,12 @@ export default function ListDetailPage() {
               >
                 {showAddForm ? 'Cancelar' : 'Agregar Item'}
               </button>
+              <button
+                onClick={() => setShowBulkModal(true)}
+                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Agregar Múltiples
+              </button>
             </>
           )}
         </div>
@@ -667,23 +687,18 @@ export default function ListDetailPage() {
               >
                 Artículo *
               </label>
-              <select
-                id="itemArticle"
-                required
-                value={newItemArticleId}
-                onChange={(e) => setNewItemArticleId(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                disabled={loadingArticles}
-              >
-                <option value="">
-                  {loadingArticles ? 'Cargando...' : 'Selecciona un artículo'}
-                </option>
-                {articles.map((article) => (
-                  <option key={article.id} value={article.id}>
-                    {article.name} ({article.brand}) - {article.product.name}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-1">
+                <SearchableArticleSelect
+                  value={newItemArticleId}
+                  onChange={(value) => {
+                    setNewItemArticleId(value);
+                  }}
+                  placeholder="Buscar artículo... (mínimo 3 caracteres)"
+                  searchEndpoint="/api/articles/search"
+                  minChars={3}
+                  debounceMs={1000}
+                />
+              </div>
             </div>
             <div>
               <label
@@ -733,14 +748,18 @@ export default function ListDetailPage() {
                 >
                   Unidad
                 </label>
-                <input
+                <select
                   id="itemUnit"
-                  type="text"
-                  value={newItemUnit}
-                  onChange={(e) => setNewItemUnit(e.target.value)}
-                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                  placeholder="unidades"
-                />
+                  value={newItemUnitId}
+                  onChange={(e) => setNewItemUnitId(e.target.value)}
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                >
+                  {units.map((unit) => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.name} ({unit.symbol})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div>
@@ -961,6 +980,17 @@ export default function ListDetailPage() {
         onShare={handleShare}
         onRemoveShare={handleRemoveShare}
         isOwner={isOwner}
+      />
+
+      <BulkItemModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        onSuccess={() => {
+          fetchList();
+          showToast('success', 'Items agregados exitosamente');
+        }}
+        listId={listId}
+        stores={stores}
       />
     </div>
   );
