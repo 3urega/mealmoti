@@ -132,7 +132,16 @@ export async function PUT(
       include: {
         recipe: {
           include: {
-            ingredients: true,
+            ingredients: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
