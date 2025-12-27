@@ -9,10 +9,17 @@ interface Product {
   name: string;
 }
 
+interface Unit {
+  id: string;
+  name: string;
+  symbol: string;
+  description?: string | null;
+}
+
 interface RecipeIngredient {
   productId: string;
   quantity: string;
-  unit: string;
+  unitId: string;
   isOptional: boolean;
   notes: string;
   order: number;
@@ -27,16 +34,39 @@ export default function NewRecipePage() {
   const [prepTime, setPrepTime] = useState('');
   const [cookTime, setCookTime] = useState('');
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    fetchUnits();
+  }, []);
+
+  const fetchUnits = async () => {
+    setLoadingUnits(true);
+    try {
+      const res = await fetch('/api/units');
+      const data = await res.json();
+      if (res.ok) {
+        setUnits(data.units || []);
+      }
+    } catch (err) {
+      console.error('Error fetching units:', err);
+    } finally {
+      setLoadingUnits(false);
+    }
+  };
+
   const addIngredient = () => {
+    // Buscar la unidad "unidades" por defecto
+    const defaultUnit = units.find((u) => u.name.toLowerCase() === 'unidades' || u.symbol.toLowerCase() === 'un');
     setIngredients([
       ...ingredients,
       {
         productId: '',
         quantity: '',
-        unit: 'unidades',
+        unitId: defaultUnit?.id || (units.length > 0 ? units[0].id : ''),
         isOptional: false,
         notes: '',
         order: ingredients.length,
@@ -63,13 +93,13 @@ export default function NewRecipePage() {
     setError('');
     setCreating(true);
 
-    // Validar que todos los ingredientes tienen producto y cantidad
+    // Validar que todos los ingredientes tienen producto, cantidad y unidad
     const invalidIngredients = ingredients.filter(
-      (ing) => !ing.productId || !ing.quantity
+      (ing) => !ing.productId || !ing.quantity || !ing.unitId
     );
 
     if (invalidIngredients.length > 0) {
-      setError('Todos los ingredientes deben tener producto y cantidad');
+      setError('Todos los ingredientes deben tener producto, cantidad y unidad');
       setCreating(false);
       return;
     }
@@ -89,7 +119,7 @@ export default function NewRecipePage() {
           ingredients: ingredients.map((ing) => ({
             productId: ing.productId,
             quantity: parseFloat(ing.quantity),
-            unit: ing.unit,
+            unitId: ing.unitId,
             isOptional: ing.isOptional,
             notes: ing.notes || undefined,
             order: ing.order,
@@ -309,16 +339,21 @@ export default function NewRecipePage() {
                       <label className="block text-xs font-medium text-gray-700">
                         Unidad *
                       </label>
-                      <input
-                        type="text"
+                      <select
                         required
-                        value={ingredient.unit}
+                        value={ingredient.unitId}
                         onChange={(e) =>
-                          updateIngredient(index, 'unit', e.target.value)
+                          updateIngredient(index, 'unitId', e.target.value)
                         }
                         className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                        placeholder="gr, ml, unidades..."
-                      />
+                      >
+                        <option value="">Seleccionar unidad...</option>
+                        {units.map((unit) => (
+                          <option key={unit.id} value={unit.id}>
+                            {unit.name} ({unit.symbol})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="md:col-span-3">

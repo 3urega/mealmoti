@@ -62,15 +62,9 @@ export async function GET(request: NextRequest) {
     // Obtener productos con conteo de artículos y familias si se solicita
     const products = await prisma.product.findMany({
       where,
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        isGeneral: true,
-        createdById: true,
-        createdAt: true,
-        families: includeFamilies
-          ? {
+      include: includeFamilies
+        ? {
+            families: {
               include: {
                 family: {
                   select: {
@@ -81,14 +75,20 @@ export async function GET(request: NextRequest) {
                   },
                 },
               },
-            }
-          : false,
-        _count: {
-          select: {
-            articles: true,
+            },
+            _count: {
+              select: {
+                articles: true,
+              },
+            },
+          }
+        : {
+            _count: {
+              select: {
+                articles: true,
+              },
+            },
           },
-        },
-      },
       orderBy: {
         name: 'asc',
       },
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Formatear respuesta con articlesCount y familias si se incluyen
-    const formattedProducts = products.map((product: typeof products[0]) => ({
+    const formattedProducts = products.map((product: any) => ({
       id: product.id,
       name: product.name,
       description: product.description,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       createdById: product.createdById,
       articlesCount: product._count.articles,
       families: includeFamilies
-        ? (product.families as any[])?.map((ppf: any) => ({
+        ? product.families?.map((ppf: any) => ({
             id: ppf.family.id,
             name: ppf.family.name,
             description: ppf.family.description,

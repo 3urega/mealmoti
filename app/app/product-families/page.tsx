@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import ProductModal from '@/components/ProductModal';
-import BulkProductModal from '@/components/BulkProductModal';
+import ProductFamilyModal from '@/components/ProductFamilyModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 interface ProductFamily {
@@ -11,28 +10,21 @@ interface ProductFamily {
   name: string;
   description?: string | null;
   isGeneral: boolean;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  description?: string | null;
-  isGeneral: boolean;
   createdById?: string | null;
-  articlesCount: number;
-  families?: ProductFamily[];
+  productsCount: number;
   createdAt: string;
+  updatedAt: string;
 }
 
-interface ProductListResponse {
-  products: Product[];
+interface ProductFamilyListResponse {
+  families: ProductFamily[];
   total: number;
   limit: number;
   offset: number;
 }
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+export default function ProductFamiliesPage() {
+  const [families, setFamilies] = useState<ProductFamily[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -42,17 +34,16 @@ export default function ProductsPage() {
   const [limit] = useState(50);
 
   const [showModal, setShowModal] = useState(false);
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingFamily, setEditingFamily] = useState<ProductFamily | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [deletingFamily, setDeletingFamily] = useState<ProductFamily | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    fetchProducts();
+    fetchFamilies();
   }, [search, generalFilter, offset]);
 
-  const fetchProducts = async () => {
+  const fetchFamilies = async () => {
     setLoading(true);
     setError('');
     try {
@@ -69,23 +60,20 @@ export default function ProductsPage() {
         params.append('general', generalFilter === 'general' ? 'true' : 'false');
       }
 
-      // Incluir familias en la respuesta
-      params.append('includeFamilies', 'true');
-
-      const res = await fetch(`/api/products?${params.toString()}`);
+      const res = await fetch(`/api/product-families?${params.toString()}`);
       const data = await res.json();
 
       if (!res.ok) {
-        setError((data as any).error || 'Error al cargar productos');
+        setError((data as any).error || 'Error al cargar familias');
         return;
       }
 
-      const response = data as ProductListResponse;
-      setProducts(response.products || []);
+      const response = data as ProductFamilyListResponse;
+      setFamilies(response.families || []);
       setTotal(response.total || 0);
     } catch (err) {
       setError('Error de conexión');
-      console.error('Error fetching products:', err);
+      console.error('Error fetching families:', err);
     } finally {
       setLoading(false);
     }
@@ -104,45 +92,45 @@ export default function ProductsPage() {
   };
 
   const handleCreateClick = () => {
-    setEditingProduct(null);
+    setEditingFamily(null);
     setShowModal(true);
   };
 
-  const handleEditClick = (product: Product) => {
-    setEditingProduct(product);
+  const handleEditClick = (family: ProductFamily) => {
+    setEditingFamily(family);
     setShowModal(true);
   };
 
-  const handleDeleteClick = (product: Product) => {
-    setDeletingProduct(product);
+  const handleDeleteClick = (family: ProductFamily) => {
+    setDeletingFamily(family);
     setDeleteError('');
     setShowDeleteModal(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingProduct) return;
+    if (!deletingFamily) return;
 
     setDeleteError('');
     try {
-      const res = await fetch(`/api/products/${deletingProduct.id}`, {
+      const res = await fetch(`/api/product-families/${deletingFamily.id}`, {
         method: 'DELETE',
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setDeleteError(data.error || 'Error al eliminar producto');
+        setDeleteError(data.error || 'Error al eliminar familia');
         if (data.details) {
           setDeleteError(
-            `${data.error}. Está asociado a ${data.details.articles} artículos.`
+            `${data.error}. Está asociada a ${data.details.products} productos.`
           );
         }
         return;
       }
 
       setShowDeleteModal(false);
-      setDeletingProduct(null);
-      fetchProducts();
+      setDeletingFamily(null);
+      fetchFamilies();
     } catch (err) {
       setDeleteError('Error de conexión');
     }
@@ -150,8 +138,8 @@ export default function ProductsPage() {
 
   const handleModalSuccess = () => {
     setShowModal(false);
-    setEditingProduct(null);
-    fetchProducts();
+    setEditingFamily(null);
+    fetchFamilies();
   };
 
   const handleClearFilters = () => {
@@ -168,21 +156,18 @@ export default function ProductsPage() {
   return (
     <div>
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Gestión de Productos</h1>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowBulkModal(true)}
-            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-          >
-            Crear Múltiples
-          </button>
-          <button
-            onClick={handleCreateClick}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Nuevo Producto
-          </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Familias de Productos</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Organiza tus productos en familias como Yogur, Carne, Pescado, etc.
+          </p>
         </div>
+        <button
+          onClick={handleCreateClick}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Nueva Familia
+        </button>
       </div>
 
       {/* Búsqueda y Filtros */}
@@ -200,7 +185,7 @@ export default function ProductsPage() {
               type="text"
               value={search}
               onChange={handleSearchChange}
-              placeholder="Buscar producto..."
+              placeholder="Buscar familia..."
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
             />
           </div>
@@ -217,7 +202,7 @@ export default function ProductsPage() {
               onChange={handleGeneralFilterChange}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
             >
-              <option value="all">Todos</option>
+              <option value="all">Todas</option>
               <option value="general">Generales</option>
               <option value="particular">Particulares</option>
             </select>
@@ -243,19 +228,19 @@ export default function ProductsPage() {
       {/* Loading */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-gray-600">Cargando productos...</div>
+          <div className="text-gray-600">Cargando familias...</div>
         </div>
-      ) : products.length === 0 ? (
+      ) : families.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <p className="text-gray-600">
             {search || generalFilter !== 'all'
-              ? 'No se encontraron productos con los filtros aplicados.'
-              : 'No hay productos todavía. Crea tu primer producto para comenzar.'}
+              ? 'No se encontraron familias con los filtros aplicados.'
+              : 'No hay familias todavía. Crea tu primera familia para comenzar.'}
           </p>
         </div>
       ) : (
         <>
-          {/* Tabla de Productos */}
+          {/* Tabla de Familias */}
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -270,10 +255,7 @@ export default function ProductsPage() {
                     Tipo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Familias
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Artículos
+                    Productos
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                     Acciones
@@ -281,60 +263,39 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {products.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
+                {families.map((family) => (
+                  <tr key={family.id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                      <Link
-                        href={`/app/products/${product.id}`}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        {product.name}
-                      </Link>
+                      {family.name}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {product.description || (
+                      {family.description || (
                         <span className="text-gray-400">Sin descripción</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       <span
                         className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          product.isGeneral
+                          family.isGeneral
                             ? 'bg-green-100 text-green-800'
                             : 'bg-blue-100 text-blue-800'
                         }`}
                       >
-                        {product.isGeneral ? 'General' : 'Particular'}
+                        {family.isGeneral ? 'General' : 'Particular'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {product.families && product.families.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {product.families.map((family) => (
-                            <span
-                              key={family.id}
-                              className="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
-                            >
-                              {family.name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">Sin familias</span>
-                      )}
-                    </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {product.articlesCount}
+                      {family.productsCount}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                       <button
-                        onClick={() => handleEditClick(product)}
+                        onClick={() => handleEditClick(family)}
                         className="mr-3 text-blue-600 hover:text-blue-900"
                       >
                         Editar
                       </button>
                       <button
-                        onClick={() => handleDeleteClick(product)}
+                        onClick={() => handleDeleteClick(family)}
                         className="text-red-600 hover:text-red-900"
                       >
                         Eliminar
@@ -352,7 +313,7 @@ export default function ProductsPage() {
               <div className="text-sm text-gray-700">
                 Mostrando <span className="font-medium">{startItem}</span> a{' '}
                 <span className="font-medium">{endItem}</span> de{' '}
-                <span className="font-medium">{total}</span> productos
+                <span className="font-medium">{total}</span> familias
               </div>
               <div className="flex gap-2">
                 <button
@@ -379,20 +340,13 @@ export default function ProductsPage() {
       )}
 
       {/* Modal de Crear/Editar */}
-      <ProductModal
+      <ProductFamilyModal
         isOpen={showModal}
         onClose={() => {
           setShowModal(false);
-          setEditingProduct(null);
+          setEditingFamily(null);
         }}
-        product={editingProduct}
-        onSuccess={handleModalSuccess}
-      />
-
-      {/* Modal de Crear Múltiples */}
-      <BulkProductModal
-        isOpen={showBulkModal}
-        onClose={() => setShowBulkModal(false)}
+        family={editingFamily}
         onSuccess={handleModalSuccess}
       />
 
@@ -401,13 +355,13 @@ export default function ProductsPage() {
         isOpen={showDeleteModal}
         onClose={() => {
           setShowDeleteModal(false);
-          setDeletingProduct(null);
+          setDeletingFamily(null);
           setDeleteError('');
         }}
         onConfirm={handleDeleteConfirm}
-        title="Eliminar Producto"
-        message={`¿Estás seguro de que quieres eliminar el producto "${deletingProduct?.name}"?`}
-        itemName={deletingProduct?.name || ''}
+        title="Eliminar Familia"
+        message={`¿Estás seguro de que quieres eliminar la familia "${deletingFamily?.name}"?`}
+        itemName={deletingFamily?.name || ''}
         error={deleteError}
       />
     </div>

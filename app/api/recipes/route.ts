@@ -16,13 +16,22 @@ const createRecipeSchema = z.object({
       z.object({
         productId: z.string().min(1, 'El producto es requerido'),
         quantity: z.number().positive('La cantidad debe ser positiva'),
-        unitId: z.string().min(1, 'La unidad es requerida'),
+        unitId: z.string().optional(),
+        unit: z.string().optional(),
         isOptional: z.boolean().optional().default(false),
         notes: z.string().optional(),
         order: z.number().int().optional().default(0),
       })
     )
-    .min(1, 'Debe tener al menos un ingrediente'),
+    .min(1, 'Debe tener al menos un ingrediente')
+    .refine(
+      (ingredients) =>
+        ingredients.every((ing) => ing.unitId || ing.unit),
+      {
+        message: 'Cada ingrediente debe tener unitId o unit',
+        path: ['ingredients'],
+      }
+    ),
 });
 
 export async function GET(request: NextRequest) {
@@ -141,6 +150,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Convertir unit (string) a unitId si es necesario
+    const processedIngredients = [];
+    for (const ingredient of ingredients) {
+      let unitId = ingredient.unitId;
+
+      // Si viene unit (string) pero no unitId, buscar la unidad
+      if (!unitId && ingredient.unit) {
+        const unit = await prisma.unit.findFirst({
+          where: {
+            OR: [
+              { name: { equals: ingredient.unit, mode: 'insensitive' } },
+              { symbol: { equals: ingredient.unit, mode: 'insensitive' } },
+            ],
+          },
+        });
+
+        if (!unit) {
+          return NextResponse.json(
+            { error: `Unidad no encontrada: ${ingredient.unit}` },
+            { status: 400 }
+          );
+        }
+
+        unitId = unit.id;
+      }
+
+      if (!unitId) {
+        return NextResponse.json(
+          { error: 'La unidad es requerida' },
+          { status: 400 }
+        );
+      }
+
+      processedIngredients.push({
+        ...ingredient,
+        unitId,
+      });
+    }
+
     // Crear la receta con sus ingredientes
     const recipe = await prisma.recipe.create({
       data: {
@@ -153,7 +201,7 @@ export async function POST(request: NextRequest) {
         isGeneral: isGeneral ?? false,
         createdById: user.id,
         ingredients: {
-          create: ingredients.map((ing: typeof ingredients[0], index: number) => ({
+          create: processedIngredients.map((ing: any, index: number) => ({
             productId: ing.productId,
             quantity: ing.quantity,
             unitId: ing.unitId,

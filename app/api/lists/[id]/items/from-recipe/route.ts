@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 const addFromRecipeSchema = z.object({
   recipeId: z.string().min(1, 'El ID de la receta es requerido'),
-  servings: z.number().int().positive().optional(),
+  servings: z.number().int().positive().nullable().optional(),
   ingredientSelections: z.record(z.string(), z.object({
     articleId: z.string().min(1),
     quantity: z.number().positive().optional(),

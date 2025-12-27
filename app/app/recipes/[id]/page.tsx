@@ -363,7 +363,7 @@ export default function RecipeDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recipeId: recipe.id,
-          servings: addToListServings ? parseInt(addToListServings) : recipe.servings,
+          servings: addToListServings ? parseInt(addToListServings) : (recipe.servings || undefined),
           ingredientSelections: Object.keys(addToListSelections).length > 0 ? addToListSelections : undefined,
         }),
       });

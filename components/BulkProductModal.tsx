@@ -1,11 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface PendingProduct {
   id: string; // ID temporal para la lista
   name: string;
   description: string;
+  isGeneral: boolean;
+}
+
+interface SuggestedProduct {
+  id: string;
+  name: string;
+  description?: string | null;
   isGeneral: boolean;
 }
 
@@ -29,6 +36,9 @@ export default function BulkProductModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [suggestedProducts, setSuggestedProducts] = useState<SuggestedProduct[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,8 +51,68 @@ export default function BulkProductModal({
       setError('');
       setFieldErrors({});
       setSaving(false);
+      setSuggestedProducts([]);
+      setSearching(false);
     }
+    // Limpiar timeout cuando el modal se cierra
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+    };
   }, [isOpen]);
+
+  // Búsqueda en tiempo real
+  useEffect(() => {
+    // Limpiar timeout anterior
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
+
+    // Solo buscar si el modal está abierto
+    if (!isOpen) {
+      setSuggestedProducts([]);
+      setSearching(false);
+      return;
+    }
+
+    // Si el nombre tiene menos de 3 caracteres, limpiar resultados
+    if (currentProduct.name.trim().length < 3) {
+      setSuggestedProducts([]);
+      setSearching(false);
+      return;
+    }
+
+    // Iniciar búsqueda después de 1 segundo de inactividad
+    setSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/products/search?q=${encodeURIComponent(currentProduct.name.trim())}`);
+        const data = await res.json();
+
+        if (res.ok && data.products) {
+          setSuggestedProducts(data.products);
+        } else {
+          setSuggestedProducts([]);
+        }
+      } catch (err) {
+        console.error('Error searching products:', err);
+        setSuggestedProducts([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 1000);
+
+    // Cleanup function
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+    };
+  }, [currentProduct.name, isOpen]);
 
   const validateProduct = (product: typeof currentProduct): boolean => {
     const errors: Record<string, string> = {};
@@ -204,6 +274,37 @@ export default function BulkProductModal({
                 />
                 {fieldErrors.name && (
                   <p className="mt-1 text-sm text-red-600">{fieldErrors.name}</p>
+                )}
+                {/* Búsqueda de productos similares */}
+                {currentProduct.name.trim().length >= 3 && (
+                  <div className="mt-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+                    {searching ? (
+                      <p className="text-xs text-gray-500">Buscando productos similares...</p>
+                    ) : suggestedProducts.length > 0 ? (
+                      <div>
+                        <p className="mb-2 text-xs font-medium text-gray-600">
+                          Productos similares encontrados:
+                        </p>
+                        <ul className="space-y-1">
+                          {suggestedProducts.map((suggested) => (
+                            <li
+                              key={suggested.id}
+                              className="text-xs text-gray-600"
+                            >
+                              • {suggested.name}
+                              {suggested.isGeneral && (
+                                <span className="ml-1 text-gray-400">(General)</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">
+                        No se encontraron productos similares.
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
