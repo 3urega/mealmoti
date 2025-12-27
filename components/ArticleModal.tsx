@@ -1,12 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
-interface Product {
-  id: string;
-  name: string;
-  isGeneral: boolean;
-}
+import SearchableProductSelect from '@/components/SearchableProductSelect';
 
 interface Ingredient {
   id: string;
@@ -47,9 +42,7 @@ export default function ArticleModal({
   const [isGeneral, setIsGeneral] = useState(false);
   const [ingredientIds, setIngredientIds] = useState<string[]>([]);
 
-  const [products, setProducts] = useState<Product[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingIngredients, setLoadingIngredients] = useState(true);
 
   const [saving, setSaving] = useState(false);
@@ -58,7 +51,6 @@ export default function ArticleModal({
 
   useEffect(() => {
     if (isOpen) {
-      fetchProducts();
       fetchIngredients();
       if (article) {
         // Modo edición
@@ -85,21 +77,6 @@ export default function ArticleModal({
       setFieldErrors({});
     }
   }, [isOpen, article]);
-
-  const fetchProducts = async () => {
-    setLoadingProducts(true);
-    try {
-      const res = await fetch('/api/products?limit=1000');
-      const data = await res.json();
-      if (res.ok) {
-        setProducts(data.products || []);
-      }
-    } catch (err) {
-      console.error('Error fetching products:', err);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
 
   const fetchIngredients = async () => {
     setLoadingIngredients(true);
@@ -274,45 +251,22 @@ export default function ArticleModal({
             >
               Producto *
             </label>
-            {loadingProducts ? (
-              <div className="mt-1 text-sm text-gray-500">
-                Cargando productos...
-              </div>
-            ) : (
-              <select
-                id="productId"
-                required
-                value={productId}
-                onChange={(e) => {
-                  setProductId(e.target.value);
-                  if (fieldErrors.productId) {
-                    setFieldErrors((prev) => {
-                      const newErrors = { ...prev };
-                      delete newErrors.productId;
-                      return newErrors;
-                    });
-                  }
-                }}
-                disabled={!!article}
-                className={`mt-1 block w-full rounded-md border bg-white px-3 py-2 text-gray-900 shadow-sm focus:outline-none focus:ring-blue-500 ${
-                  fieldErrors.productId
-                    ? 'border-red-300 focus:border-red-500'
-                    : 'border-gray-300 focus:border-blue-500'
-                } ${article ? 'bg-gray-100' : ''}`}
-              >
-                <option value="">Selecciona un producto</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} ({product.isGeneral ? 'General' : 'Particular'})
-                  </option>
-                ))}
-              </select>
-            )}
-            {fieldErrors.productId && (
-              <p className="mt-1 text-sm text-red-600">
-                {fieldErrors.productId}
-              </p>
-            )}
+            <SearchableProductSelect
+              value={productId}
+              onChange={(value) => {
+                setProductId(value);
+                if (fieldErrors.productId) {
+                  setFieldErrors((prev) => {
+                    const newErrors = { ...prev };
+                    delete newErrors.productId;
+                    return newErrors;
+                  });
+                }
+              }}
+              placeholder="Buscar producto... (mínimo 3 caracteres)"
+              disabled={!!article}
+              error={fieldErrors.productId}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

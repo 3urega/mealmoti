@@ -154,6 +154,12 @@ export default function Header() {
                 >
                   Recetas
                 </Link>
+                <Link
+                  href="/app/statistics"
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                >
+                  Estadísticas
+                </Link>
                 <span className="text-sm text-gray-600">{user.name}</span>
                 <button
                   onClick={handleLogout}
