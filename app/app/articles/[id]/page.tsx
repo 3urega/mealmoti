@@ -180,11 +180,23 @@ export default function ArticleDetailPage() {
         >
           ← Volver a artículos
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">{article.name}</h1>
-        <p className="mt-2 text-gray-600">
-          {article.brand}
-          {article.variant && ` - ${article.variant}`}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{article.name}</h1>
+            <p className="mt-2 text-gray-600">
+              {article.brand}
+              {article.variant && ` - ${article.variant}`}
+            </p>
+          </div>
+          {canEdit && (
+            <button
+              onClick={() => router.push(`/app/articles/${articleId}/edit`)}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Editar
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (

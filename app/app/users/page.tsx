@@ -1,52 +1,74 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import IngredientModal from '@/components/IngredientModal';
-import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { useRouter } from 'next/navigation';
+import UserModal from '@/components/UserModal';
+import { useNotification } from '@/contexts/NotificationContext';
 
-interface Ingredient {
+interface User {
   id: string;
   name: string;
-  type: 'chemical' | 'generic' | 'product';
-  description?: string | null;
-  allergenInfo?: string | null;
-  productId?: string | null;
-  product?: {
-    id: string;
-    name: string;
-  } | null;
-  createdAt: string;
-  updatedAt: string;
+  email: string;
+  role: string;
+  createdAt: string | Date;
 }
 
-interface IngredientListResponse {
-  ingredients: Ingredient[];
+interface UserListResponse {
+  users: User[];
   total: number;
   limit: number;
   offset: number;
 }
 
-export default function IngredientsPage() {
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+const ROLE_LABELS: Record<string, string> = {
+  superadmin: 'Super Administrador',
+  admin: 'Administrador',
+  recetas: 'Gestor de Recetas',
+  productos: 'Gestor de Productos',
+  user: 'Usuario',
+};
+
+export default function UsersPage() {
+  const router = useRouter();
+  const { showNotification } = useNotification();
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [limit] = useState(50);
-  
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletingIngredient, setDeletingIngredient] = useState<Ingredient | null>(null);
-  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    fetchIngredients();
-  }, [search, typeFilter, offset]);
+    fetchCurrentUser();
+    fetchUsers();
+  }, [search, roleFilter, offset]);
 
-  const fetchIngredients = async () => {
+  const fetchCurrentUser = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (res.ok && data.user) {
+        setCurrentUser(data.user);
+        // Verificar permisos
+        if (data.user.role !== 'admin' && data.user.role !== 'superadmin') {
+          router.push('/app');
+          return;
+        }
+      } else {
+        router.push('/login');
+      }
+    } catch (err) {
+      console.error('Error fetching current user:', err);
+      router.push('/login');
+    }
+  };
+
+  const fetchUsers = async () => {
     setLoading(true);
     setError('');
     try {
@@ -59,24 +81,29 @@ export default function IngredientsPage() {
         params.append('search', search.trim());
       }
 
-      if (typeFilter !== 'all') {
-        params.append('type', typeFilter);
+      if (roleFilter !== 'all') {
+        params.append('role', roleFilter);
       }
 
-      const res = await fetch(`/api/ingredients?${params.toString()}`);
+      const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
 
       if (!res.ok) {
-        setError((data as any).error || 'Error al cargar ingredientes');
+        if (res.status === 403) {
+          setError('No tienes permisos para acceder a esta página');
+          router.push('/app');
+          return;
+        }
+        setError((data as any).error || 'Error al cargar usuarios');
         return;
       }
 
-      const response = data as IngredientListResponse;
-      setIngredients(response.ingredients || []);
+      const response = data as UserListResponse;
+      setUsers(response.users || []);
       setTotal(response.total || 0);
     } catch (err) {
       setError('Error de conexión');
-      console.error('Error fetching ingredients:', err);
+      console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
     }
@@ -84,63 +111,37 @@ export default function IngredientsPage() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
-    setOffset(0); // Reset a primera página al buscar
+    setOffset(0);
   };
 
-  const handleTypeFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setTypeFilter(e.target.value);
-    setOffset(0); // Reset a primera página al filtrar
+  const handleRoleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setRoleFilter(e.target.value);
+    setOffset(0);
   };
 
   const handleCreateClick = () => {
     setShowModal(true);
   };
 
-
-  const handleDeleteClick = (ingredient: Ingredient) => {
-    setDeletingIngredient(ingredient);
-    setDeleteError('');
-    setShowDeleteModal(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deletingIngredient) return;
-
-    setDeleteError('');
-    try {
-      const res = await fetch(`/api/ingredients/${deletingIngredient.id}`, {
-        method: 'DELETE',
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setDeleteError(data.error || 'Error al eliminar ingrediente');
-        if (data.details) {
-          setDeleteError(
-            `${data.error}. Está asociado a ${data.details.products} productos y ${data.details.articles} artículos.`
-          );
-        }
-        return;
-      }
-
-      setShowDeleteModal(false);
-      setDeletingIngredient(null);
-      fetchIngredients();
-    } catch (err) {
-      setDeleteError('Error de conexión');
-    }
-  };
-
   const handleModalSuccess = () => {
     setShowModal(false);
-    fetchIngredients();
+    fetchUsers();
+    showNotification('Usuario creado correctamente', 'success');
   };
 
   const handleClearFilters = () => {
     setSearch('');
-    setTypeFilter('all');
+    setRoleFilter('all');
     setOffset(0);
+  };
+
+  const formatDate = (dateString: string | Date) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   };
 
   const currentPage = Math.floor(offset / limit) + 1;
@@ -148,15 +149,28 @@ export default function IngredientsPage() {
   const startItem = offset + 1;
   const endItem = Math.min(offset + limit, total);
 
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'superadmin')) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-gray-600">Verificando permisos...</div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Gestión de Ingredientes</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Administra los usuarios del sistema
+          </p>
+        </div>
         <button
           onClick={handleCreateClick}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
-          Nuevo Ingrediente
+          Crear Usuario
         </button>
       </div>
 
@@ -168,34 +182,36 @@ export default function IngredientsPage() {
               htmlFor="search"
               className="block text-sm font-medium text-gray-700"
             >
-              Buscar por nombre
+              Buscar por nombre o email
             </label>
             <input
               id="search"
               type="text"
               value={search}
               onChange={handleSearchChange}
-              placeholder="Buscar ingrediente..."
+              placeholder="Buscar usuario..."
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
             />
           </div>
           <div>
             <label
-              htmlFor="typeFilter"
+              htmlFor="roleFilter"
               className="block text-sm font-medium text-gray-700"
             >
-              Filtrar por tipo
+              Filtrar por rol
             </label>
             <select
-              id="typeFilter"
-              value={typeFilter}
-              onChange={handleTypeFilterChange}
+              id="roleFilter"
+              value={roleFilter}
+              onChange={handleRoleFilterChange}
               className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
             >
               <option value="all">Todos</option>
-              <option value="chemical">Chemical</option>
-              <option value="generic">Generic</option>
-              <option value="product">Product</option>
+              <option value="superadmin">Super Administrador</option>
+              <option value="admin">Administrador</option>
+              <option value="recetas">Gestor de Recetas</option>
+              <option value="productos">Gestor de Productos</option>
+              <option value="user">Usuario</option>
             </select>
           </div>
           <div className="flex items-end">
@@ -219,19 +235,19 @@ export default function IngredientsPage() {
       {/* Loading */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-gray-600">Cargando ingredientes...</div>
+          <div className="text-gray-600">Cargando usuarios...</div>
         </div>
-      ) : ingredients.length === 0 ? (
+      ) : users.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <p className="text-gray-600">
-            {search || typeFilter !== 'all'
-              ? 'No se encontraron ingredientes con los filtros aplicados.'
-              : 'No hay ingredientes todavía. Crea tu primer ingrediente para comenzar.'}
+            {search || roleFilter !== 'all'
+              ? 'No se encontraron usuarios con los filtros aplicados.'
+              : 'No hay usuarios todavía. Crea tu primer usuario para comenzar.'}
           </p>
         </div>
       ) : (
         <>
-          {/* Tabla de Ingredientes */}
+          {/* Tabla de Usuarios */}
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -240,55 +256,42 @@ export default function IngredientsPage() {
                     Nombre
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Tipo
+                    Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Descripción
+                    Rol
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Producto Asociado
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Acciones
+                    Fecha de registro
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {ingredients.map((ingredient) => (
-                  <tr key={ingredient.id} className="hover:bg-gray-50">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                      {ingredient.name}
+                      {user.name}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      <span className="inline-flex rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-800">
-                        {ingredient.type}
+                      {user.email}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                          user.role === 'superadmin'
+                            ? 'bg-purple-100 text-purple-800'
+                            : user.role === 'admin'
+                            ? 'bg-blue-100 text-blue-800'
+                            : user.role === 'recetas' || user.role === 'productos'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {ROLE_LABELS[user.role] || user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {ingredient.description || (
-                        <span className="text-gray-400">Sin descripción</span>
-                      )}
-                    </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {ingredient.product ? (
-                        <span className="text-gray-900">{ingredient.product.name}</span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                      <Link
-                        href={`/app/ingredients/${ingredient.id}`}
-                        className="mr-3 text-blue-600 hover:text-blue-900"
-                      >
-                        Editar
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteClick(ingredient)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Eliminar
-                      </button>
+                      {formatDate(user.createdAt)}
                     </td>
                   </tr>
                 ))}
@@ -302,7 +305,7 @@ export default function IngredientsPage() {
               <div className="text-sm text-gray-700">
                 Mostrando <span className="font-medium">{startItem}</span> a{' '}
                 <span className="font-medium">{endItem}</span> de{' '}
-                <span className="font-medium">{total}</span> ingredientes
+                <span className="font-medium">{total}</span> usuarios
               </div>
               <div className="flex gap-2">
                 <button
@@ -328,29 +331,12 @@ export default function IngredientsPage() {
         </>
       )}
 
-      {/* Modal de Crear (solo creación) */}
-      <IngredientModal
+      {/* Modal de Crear Usuario */}
+      <UserModal
         isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-        }}
-        ingredient={null}
+        onClose={() => setShowModal(false)}
+        user={null}
         onSuccess={handleModalSuccess}
-      />
-
-      {/* Modal de Confirmar Eliminación */}
-      <ConfirmDeleteModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setDeletingIngredient(null);
-          setDeleteError('');
-        }}
-        onConfirm={handleDeleteConfirm}
-        title="Eliminar Ingrediente"
-        message={`¿Estás seguro de que quieres eliminar el ingrediente "${deletingIngredient?.name}"?`}
-        itemName={deletingIngredient?.name || ''}
-        error={deleteError}
       />
     </div>
   );

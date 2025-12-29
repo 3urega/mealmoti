@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 const createArticleSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
+  description: z.string().optional().nullable(),
   productId: z.string().min(1, 'El producto es requerido'),
   brand: z.string().min(1, 'La marca es requerida').default('genérico'),
   variant: z.string().optional(),
@@ -183,6 +184,7 @@ export async function POST(request: NextRequest) {
     // Crear artículo
     const articleData: any = {
       name: validatedData.name.trim(),
+      description: validatedData.description?.trim() || null,
       productId: validatedData.productId,
       brand: validatedData.brand.trim() || 'genérico',
       variant: validatedData.variant?.trim() || null,

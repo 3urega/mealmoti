@@ -16,6 +16,7 @@ interface SearchableProductSelectProps {
   disabled?: boolean;
   error?: string;
   onBlur?: () => void;
+  initialProductName?: string | null;
 }
 
 export default function SearchableProductSelect({
@@ -25,10 +26,12 @@ export default function SearchableProductSelect({
   disabled = false,
   error,
   onBlur,
+  initialProductName,
 }: SearchableProductSelectProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [options, setOptions] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingProduct, setLoadingProduct] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -37,19 +40,41 @@ export default function SearchableProductSelect({
   // Cargar producto seleccionado cuando hay un value
   useEffect(() => {
     if (value && value !== '') {
+      // Si tenemos el nombre inicial, usarlo inmediatamente (prioridad)
+      if (initialProductName) {
+        setSelectedProduct({
+          id: value,
+          name: initialProductName,
+          description: null,
+          isGeneral: false,
+        });
+        setSearchQuery(initialProductName);
+        setLoadingProduct(false);
+        return;
+      }
+
+      // Si no hay nombre inicial pero hay value, intentar cargar desde la API
       // Solo cargar si no hay producto seleccionado o el ID no coincide
-      const shouldLoad = !selectedProduct || selectedProduct.id !== value;
-      if (shouldLoad) {
+      if (!selectedProduct || selectedProduct.id !== value) {
+        setLoadingProduct(true);
         fetch(`/api/products/${value}`)
           .then((res) => res.json())
           .then((data) => {
-            if (data.product && data.product.id === value) {
+            if (res.ok && data.product && data.product.id === value) {
               setSelectedProduct(data.product);
               setSearchQuery(data.product.name);
+            } else {
+              setSelectedProduct(null);
+              setSearchQuery('');
             }
           })
-          .catch(() => {
-            // Si falla, simplemente no mostrar nada
+          .catch((err) => {
+            console.error('Error loading product:', err);
+            setSelectedProduct(null);
+            setSearchQuery('');
+          })
+          .finally(() => {
+            setLoadingProduct(false);
           });
       }
     } else {
@@ -58,8 +83,24 @@ export default function SearchableProductSelect({
         setSearchQuery('');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+
+  // Actualizar cuando initialProductName esté disponible (después de que article se carga)
+  useEffect(() => {
+    if (value && value !== '' && initialProductName) {
+      // Si el producto seleccionado no coincide o no existe, actualizar
+      if (!selectedProduct || selectedProduct.id !== value || selectedProduct.name !== initialProductName) {
+        setSelectedProduct({
+          id: value,
+          name: initialProductName,
+          description: null,
+          isGeneral: false,
+        });
+        setSearchQuery(initialProductName);
+        setLoadingProduct(false);
+      }
+    }
+  }, [initialProductName, value]);
 
   // Búsqueda en tiempo real
   useEffect(() => {
@@ -166,15 +207,26 @@ export default function SearchableProductSelect({
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           onBlur={onBlur}
-          disabled={disabled}
-          placeholder={selectedProduct ? selectedProduct.name : placeholder}
+          disabled={disabled || loadingProduct}
+          placeholder={
+            loadingProduct
+              ? 'Cargando producto...'
+              : selectedProduct
+              ? selectedProduct.name
+              : placeholder
+          }
           className={`block w-full rounded-md border bg-white px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-blue-500 ${
             error
               ? 'border-red-300 focus:border-red-500'
               : 'border-gray-300 focus:border-blue-500'
-          } ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+          } ${disabled || loadingProduct ? 'bg-gray-100 cursor-not-allowed' : ''}`}
         />
-        {selectedProduct && !disabled && (
+        {loadingProduct && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+          </div>
+        )}
+        {selectedProduct && !disabled && !loadingProduct && (
           <button
             type="button"
             onClick={() => {

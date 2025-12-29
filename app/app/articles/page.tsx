@@ -50,7 +50,6 @@ export default function ArticlesPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingArticle, setDeletingArticle] = useState<Article | null>(null);
   const [deleteError, setDeleteError] = useState('');
@@ -145,12 +144,6 @@ export default function ArticlesPage() {
   };
 
   const handleCreateClick = () => {
-    setEditingArticle(null);
-    setShowModal(true);
-  };
-
-  const handleEditClick = (article: Article) => {
-    setEditingArticle(article);
     setShowModal(true);
   };
 
@@ -192,7 +185,6 @@ export default function ArticlesPage() {
   const handleModalSuccess = () => {
     setShowModal(false);
     setShowBulkModal(false);
-    setEditingArticle(null);
     fetchArticles();
   };
 
@@ -409,7 +401,7 @@ export default function ArticlesPage() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                       <button
-                        onClick={() => handleEditClick(article)}
+                        onClick={() => router.push(`/app/articles/${article.id}/edit`)}
                         className="mr-3 text-blue-600 hover:text-blue-900"
                       >
                         Editar
@@ -459,14 +451,12 @@ export default function ArticlesPage() {
         </>
       )}
 
-      {/* Modal de Crear/Editar */}
+      {/* Modal de Crear */}
       <ArticleModal
         isOpen={showModal}
         onClose={() => {
           setShowModal(false);
-          setEditingArticle(null);
         }}
-        article={editingArticle}
         onSuccess={handleModalSuccess}
       />
 

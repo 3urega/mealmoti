@@ -9,29 +9,15 @@ interface Ingredient {
   type: string;
 }
 
-interface Article {
-  id: string;
-  name: string;
-  product: { id: string; name: string };
-  brand: string;
-  variant?: string | null;
-  suggestedPrice?: number | null;
-  isGeneral: boolean;
-  createdById?: string | null;
-  storesCount: number;
-}
-
 interface ArticleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  article?: Article | null;
   onSuccess: () => void;
 }
 
 export default function ArticleModal({
   isOpen,
   onClose,
-  article,
   onSuccess,
 }: ArticleModalProps) {
   const [name, setName] = useState('');
@@ -52,31 +38,18 @@ export default function ArticleModal({
   useEffect(() => {
     if (isOpen) {
       fetchIngredients();
-      if (article) {
-        // Modo edición
-        setName(article.name);
-        setProductId(article.product.id);
-        setBrand(article.brand);
-        setVariant(article.variant || '');
-        setSuggestedPrice(article.suggestedPrice?.toString() || '');
-        setIsGeneral(article.isGeneral);
-        // Nota: Los ingredientes se cargarían desde GET /api/articles/[id]/ingredients
-        // Por ahora los dejamos vacíos en edición
-        setIngredientIds([]);
-      } else {
-        // Modo creación
-        setName('');
-        setProductId('');
-        setBrand('genérico');
-        setVariant('');
-        setSuggestedPrice('');
-        setIsGeneral(false);
-        setIngredientIds([]);
-      }
+      // Modo creación
+      setName('');
+      setProductId('');
+      setBrand('genérico');
+      setVariant('');
+      setSuggestedPrice('');
+      setIsGeneral(false);
+      setIngredientIds([]);
       setError('');
       setFieldErrors({});
     }
-  }, [isOpen, article]);
+  }, [isOpen]);
 
   const fetchIngredients = async () => {
     setLoadingIngredients(true);
@@ -124,11 +97,6 @@ export default function ArticleModal({
     setSaving(true);
 
     try {
-      const url = article
-        ? `/api/articles/${article.id}`
-        : '/api/articles';
-      const method = article ? 'PUT' : 'POST';
-
       const body: any = {
         name: name.trim(),
         productId,
@@ -140,13 +108,13 @@ export default function ArticleModal({
         isGeneral,
       };
 
-      // Solo incluir ingredientIds en POST (creación)
-      if (!article && ingredientIds.length > 0) {
+      // Incluir ingredientIds si hay alguno seleccionado
+      if (ingredientIds.length > 0) {
         body.ingredientIds = ingredientIds;
       }
 
-      const res = await fetch(url, {
-        method,
+      const res = await fetch('/api/articles', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -191,9 +159,7 @@ export default function ArticleModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {article ? 'Editar Artículo' : 'Nuevo Artículo'}
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900">Nuevo Artículo</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -264,7 +230,6 @@ export default function ArticleModal({
                 }
               }}
               placeholder="Buscar producto... (mínimo 3 caracteres)"
-              disabled={!!article}
               error={fieldErrors.productId}
             />
           </div>
@@ -361,43 +326,41 @@ export default function ArticleModal({
             )}
           </div>
 
-          {!article && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Ingredientes (opcional)
-              </label>
-              {loadingIngredients ? (
-                <div className="mt-1 text-sm text-gray-500">
-                  Cargando ingredientes...
-                </div>
-              ) : (
-                <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-gray-300 p-2">
-                  {ingredients.length === 0 ? (
-                    <p className="text-sm text-gray-500">
-                      No hay ingredientes disponibles
-                    </p>
-                  ) : (
-                    ingredients.map((ingredient) => (
-                      <label
-                        key={ingredient.id}
-                        className="flex items-center space-x-2 py-1"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={ingredientIds.includes(ingredient.id)}
-                          onChange={() => handleIngredientToggle(ingredient.id)}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">
-                          {ingredient.name} ({ingredient.type})
-                        </span>
-                      </label>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Ingredientes (opcional)
+            </label>
+            {loadingIngredients ? (
+              <div className="mt-1 text-sm text-gray-500">
+                Cargando ingredientes...
+              </div>
+            ) : (
+              <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-gray-300 p-2">
+                {ingredients.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No hay ingredientes disponibles
+                  </p>
+                ) : (
+                  ingredients.map((ingredient) => (
+                    <label
+                      key={ingredient.id}
+                      className="flex items-center space-x-2 py-1"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={ingredientIds.includes(ingredient.id)}
+                        onChange={() => handleIngredientToggle(ingredient.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {ingredient.name} ({ingredient.type})
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center">
             <input
@@ -438,7 +401,7 @@ export default function ArticleModal({
               disabled={saving}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
             >
-              {saving ? 'Guardando...' : article ? 'Actualizar' : 'Crear'}
+              {saving ? 'Guardando...' : 'Crear'}
             </button>
           </div>
         </form>

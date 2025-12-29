@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 const updateArticleSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido').optional(),
+  description: z.string().optional().nullable(),
   productId: z.string().optional(),
   brand: z.string().min(1, 'La marca es requerida').optional(),
   variant: z.string().optional(),
@@ -232,6 +233,9 @@ export async function PUT(
 
     if (validatedData.name !== undefined) {
       updateData.name = validatedData.name.trim();
+    }
+    if (validatedData.description !== undefined) {
+      updateData.description = validatedData.description?.trim() || null;
     }
     if (validatedData.productId !== undefined) {
       updateData.productId = validatedData.productId;

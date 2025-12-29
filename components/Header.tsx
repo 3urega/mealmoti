@@ -15,8 +15,10 @@ export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCatalogMenu, setShowCatalogMenu] = useState(false);
+  const [showManagementMenu, setShowManagementMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const catalogMenuRef = useRef<HTMLDivElement>(null);
+  const managementMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,6 +33,9 @@ export default function Header() {
       .catch(() => setLoading(false));
   }, []);
 
+  // Verificar si el usuario es admin o superadmin
+  const isAdminUser = user?.role === 'admin' || user?.role === 'superadmin';
+
   // Cerrar menú al hacer click fuera
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -41,6 +46,12 @@ export default function Header() {
         setShowCatalogMenu(false);
       }
       if (
+        managementMenuRef.current &&
+        !managementMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowManagementMenu(false);
+      }
+      if (
         mobileMenuRef.current &&
         !mobileMenuRef.current.contains(event.target as Node) &&
         !(event.target as HTMLElement).closest('[data-mobile-menu-button]')
@@ -49,13 +60,13 @@ export default function Header() {
       }
     }
 
-    if (showCatalogMenu || showMobileMenu) {
+    if (showCatalogMenu || showManagementMenu || showMobileMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
-  }, [showCatalogMenu, showMobileMenu]);
+  }, [showCatalogMenu, showManagementMenu, showMobileMenu]);
 
   // Prevenir scroll del body cuando el menú móvil está abierto
   useEffect(() => {
@@ -168,6 +179,44 @@ export default function Header() {
                       </div>
                     )}
                   </div>
+                  {isAdminUser && (
+                    <div className="relative" ref={managementMenuRef}>
+                      <button
+                        onClick={() => setShowManagementMenu(!showManagementMenu)}
+                        className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                      >
+                        Gestión
+                        <svg
+                          className={`ml-1 inline-block h-4 w-4 transition-transform ${
+                            showManagementMenu ? 'rotate-180' : ''
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {showManagementMenu && (
+                        <div className="absolute right-0 z-50 mt-2 w-48 rounded-md border border-gray-200 bg-white shadow-lg">
+                          <div className="py-1">
+                            <Link
+                              href="/app/users"
+                              onClick={() => setShowManagementMenu(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Usuarios
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <Link
                     href="/app/stores"
                     className="text-sm font-medium text-gray-700 hover:text-gray-900"
@@ -358,6 +407,22 @@ export default function Header() {
                       Artículos
                     </Link>
                   </div>
+
+                  {/* Gestión - solo para admin y superadmin */}
+                  {isAdminUser && (
+                    <div className="space-y-1">
+                      <div className="px-3 py-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                        Gestión
+                      </div>
+                      <Link
+                        href="/app/users"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                      >
+                        Usuarios
+                      </Link>
+                    </div>
+                  )}
 
                   <Link
                     href="/app/stores"
