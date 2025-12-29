@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface Store {
   id: string;
@@ -9,14 +11,6 @@ interface Store {
   address?: string | null;
   isGeneral: boolean;
   createdById?: string | null;
-  articlesCount: number;
-}
-
-interface StoreModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  store?: Store | null;
-  onSuccess: () => void;
 }
 
 const typeOptions = [
@@ -26,40 +20,50 @@ const typeOptions = [
   { value: 'other', label: 'Otro' },
 ];
 
-export default function StoreModal({
-  isOpen,
-  onClose,
-  store,
-  onSuccess,
-}: StoreModalProps) {
-  const [name, setName] = useState('');
-  const [type, setType] = useState<'supermarket' | 'specialty' | 'online' | 'other'>('supermarket');
-  const [address, setAddress] = useState('');
-  const [isGeneral, setIsGeneral] = useState(false);
+export default function EditStorePage() {
+  const params = useParams();
+  const router = useRouter();
+  const { showToast } = useNotification();
+  const storeId = params.id as string;
+
+  const [store, setStore] = useState<Store | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const [name, setName] = useState('');
+  const [type, setType] = useState<'supermarket' | 'specialty' | 'online' | 'other'>('supermarket');
+  const [address, setAddress] = useState('');
+  const [isGeneral, setIsGeneral] = useState(false);
+
   useEffect(() => {
-    if (isOpen) {
-      if (store) {
-        // Modo edición
-        setName(store.name);
-        setType(store.type as 'supermarket' | 'specialty' | 'online' | 'other');
-        setAddress(store.address || '');
-        setIsGeneral(store.isGeneral);
-      } else {
-        // Modo creación
-        setName('');
-        setType('supermarket');
-        setAddress('');
-        setIsGeneral(false);
+    fetchStore();
+  }, [storeId]);
+
+  const fetchStore = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/stores/${storeId}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Error al cargar el comercio');
+        return;
       }
-      setError('');
-      setFieldErrors({});
-      setSaving(false); // Resetear estado de guardado al abrir el modal
+
+      const storeData = data.store;
+      setStore(storeData);
+      setName(storeData.name);
+      setType(storeData.type as 'supermarket' | 'specialty' | 'online' | 'other');
+      setAddress(storeData.address || '');
+      setIsGeneral(storeData.isGeneral);
+    } catch (err) {
+      setError('Error de conexión');
+    } finally {
+      setLoading(false);
     }
-  }, [isOpen, store]);
+  };
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
@@ -83,11 +87,6 @@ export default function StoreModal({
     setSaving(true);
 
     try {
-      const url = store
-        ? `/api/stores/${store.id}`
-        : '/api/stores';
-      const method = store ? 'PUT' : 'POST';
-
       const body: any = {
         name: name.trim(),
         type,
@@ -95,8 +94,8 @@ export default function StoreModal({
         isGeneral,
       };
 
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(`/api/stores/${storeId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -114,37 +113,64 @@ export default function StoreModal({
           });
           setFieldErrors(zodErrors);
         } else {
-          setError(data.error || 'Error al guardar comercio');
+          setError(data.error || 'Error al actualizar comercio');
         }
         setSaving(false);
         return;
       }
 
-      onSuccess();
+      showToast('success', 'Comercio actualizado correctamente');
+      router.push(`/app/stores/${storeId}`);
     } catch (err) {
       setError('Error de conexión');
       setSaving(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-gray-600">Cargando...</p>
+      </div>
+    );
+  }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {store ? 'Editar Comercio' : 'Nuevo Comercio'}
-          </h2>
+  if (error && !store) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-red-800">{error}</p>
           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-            disabled={saving}
+            onClick={() => router.push('/app/stores')}
+            className="mt-4 text-blue-600 hover:text-blue-800"
           >
-            ✕
+            ← Volver a comercios
           </button>
         </div>
+      </div>
+    );
+  }
 
+  if (!store) {
+    return null;
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <button
+          onClick={() => router.push(`/app/stores/${storeId}`)}
+          className="mb-4 text-blue-600 hover:text-blue-800"
+        >
+          ← Volver al comercio
+        </button>
+        <h1 className="text-3xl font-bold text-gray-900">Editar Comercio</h1>
+        <p className="mt-2 text-gray-600">
+          Modifica la información del comercio "{store.name}"
+        </p>
+      </div>
+
+      <div className="max-w-2xl rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
@@ -258,7 +284,7 @@ export default function StoreModal({
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => router.push(`/app/stores/${storeId}`)}
               disabled={saving}
               className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
             >
@@ -269,7 +295,7 @@ export default function StoreModal({
               disabled={saving}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
             >
-              {saving ? 'Guardando...' : store ? 'Actualizar' : 'Crear'}
+              {saving ? 'Guardando...' : 'Actualizar'}
             </button>
           </div>
         </form>

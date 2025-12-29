@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
     const excludeProductId = searchParams.get('excludeProductId'); // Para excluir artículos ya asociados a un producto específico
     const productId = searchParams.get('productId'); // Para filtrar por producto específico
 
-    // Solo buscar si hay al menos 3 caracteres
-    if (query.length < 3) {
+    // Solo buscar si hay al menos 3 caracteres, EXCEPTO cuando hay productId (permite obtener artículos sin query)
+    if (!productId && query.length < 3) {
       return NextResponse.json({ articles: [] }, { status: 200 });
     }
 

@@ -17,6 +17,7 @@ interface SearchableArticleSelectProps {
   debounceMs?: number;
   onClear?: () => void;
   excludeProductId?: string; // Para excluir artículos de un producto específico
+  productId?: string; // Para filtrar por producto específico
 }
 
 export default function SearchableArticleSelect({
@@ -28,6 +29,7 @@ export default function SearchableArticleSelect({
   debounceMs = 1000,
   onClear,
   excludeProductId,
+  productId,
 }: SearchableArticleSelectProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [options, setOptions] = useState<Option[]>([]);
@@ -43,7 +45,9 @@ export default function SearchableArticleSelect({
       clearTimeout(debounceTimerRef.current);
     }
 
-    if (searchQuery.length < minChars) {
+    // Si hay productId, no requerir mínimo de caracteres; si no, aplicar minChars
+    const effectiveMinChars = productId ? 0 : minChars;
+    if (searchQuery.length < effectiveMinChars) {
       setOptions([]);
       setLoading(false);
       return;
@@ -58,6 +62,9 @@ export default function SearchableArticleSelect({
         urlObj.searchParams.set('limit', '20');
         if (excludeProductId) {
           urlObj.searchParams.set('excludeProductId', excludeProductId);
+        }
+        if (productId) {
+          urlObj.searchParams.set('productId', productId);
         }
         const url = urlObj.pathname + urlObj.search;
         const res = await fetch(url);
@@ -78,7 +85,7 @@ export default function SearchableArticleSelect({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [searchQuery, searchEndpoint, minChars, debounceMs, excludeProductId]);
+  }, [searchQuery, searchEndpoint, minChars, debounceMs, excludeProductId, productId]);
 
   // Cargar opción seleccionada si hay un value
   useEffect(() => {
@@ -159,7 +166,8 @@ export default function SearchableArticleSelect({
   };
 
   const handleInputFocus = () => {
-    if (searchQuery.length >= minChars) {
+    const effectiveMinChars = productId ? 0 : minChars;
+    if (searchQuery.length >= effectiveMinChars) {
       setShowDropdown(true);
     }
   };
@@ -199,7 +207,7 @@ export default function SearchableArticleSelect({
         )}
       </div>
 
-      {showDropdown && searchQuery.length >= minChars && (
+      {showDropdown && searchQuery.length >= (productId ? 0 : minChars) && (
         <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
           {loading ? (
             <div className="px-4 py-2 text-sm text-gray-500">Buscando...</div>
@@ -232,7 +240,7 @@ export default function SearchableArticleSelect({
         </div>
       )}
 
-      {searchQuery.length > 0 && searchQuery.length < minChars && (
+      {searchQuery.length > 0 && searchQuery.length < minChars && !productId && (
         <p className="mt-1 text-xs text-gray-500">
           Escribe al menos {minChars} caracteres para buscar
         </p>

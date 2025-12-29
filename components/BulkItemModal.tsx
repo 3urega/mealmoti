@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import SearchableArticleSelect from '@/components/SearchableArticleSelect';
+import SearchableProductSelect from '@/components/SearchableProductSelect';
 
 interface Store {
   id: string;
@@ -44,6 +45,7 @@ export default function BulkItemModal({
 }: BulkItemModalProps) {
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [currentItem, setCurrentItem] = useState({
+    productId: '',
     articleId: '',
     articleName: '',
     quantity: '',
@@ -51,6 +53,7 @@ export default function BulkItemModal({
     storeId: '',
     notes: '',
   });
+  const [exampleArticles, setExampleArticles] = useState<Array<{ id: string; name: string; description?: string | null }>>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -74,11 +77,27 @@ export default function BulkItemModal({
     }
   };
 
+  const fetchExampleArticles = async (productId: string) => {
+    try {
+      const res = await fetch(`/api/articles/search?productId=${encodeURIComponent(productId)}&limit=2`);
+      if (res.ok) {
+        const data = await res.json();
+        setExampleArticles(data.articles || []);
+      } else {
+        setExampleArticles([]);
+      }
+    } catch (err) {
+      console.error('Error al cargar artículos de ejemplo:', err);
+      setExampleArticles([]);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchUnits();
       setPendingItems([]);
       setCurrentItem({
+        productId: '',
         articleId: '',
         articleName: '',
         quantity: '',
@@ -86,15 +105,39 @@ export default function BulkItemModal({
         storeId: '',
         notes: '',
       });
+      setExampleArticles([]);
       setError('');
       setFieldErrors({});
       setSaving(false);
     }
   }, [isOpen]);
 
+  // Obtener artículos de ejemplo cuando se selecciona un producto
+  useEffect(() => {
+    if (currentItem.productId) {
+      fetchExampleArticles(currentItem.productId);
+      // Limpiar la selección de artículo cuando cambia el producto
+      setCurrentItem((prev) => ({
+        ...prev,
+        articleId: '',
+        articleName: '',
+      }));
+    } else {
+      setExampleArticles([]);
+      setCurrentItem((prev) => ({
+        ...prev,
+        articleId: '',
+        articleName: '',
+      }));
+    }
+  }, [currentItem.productId]);
+
   const validateItem = (item: typeof currentItem): boolean => {
     const errors: Record<string, string> = {};
 
+    if (!item.productId) {
+      errors.productId = 'El producto es requerido';
+    }
     if (!item.articleId) {
       errors.articleId = 'El artículo es requerido';
     }
@@ -130,6 +173,7 @@ export default function BulkItemModal({
     setPendingItems([...pendingItems, newItem]);
     const defaultUnit = units.find((u) => u.name === 'unidades');
     setCurrentItem({
+      productId: currentItem.productId, // Mantener el producto seleccionado
       articleId: '',
       articleName: '',
       quantity: '',
@@ -278,27 +322,73 @@ export default function BulkItemModal({
             <div className="space-y-4">
               <div>
                 <label
-                  htmlFor="bulk-item-article"
+                  htmlFor="bulk-item-product"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Artículo *
+                  Producto *
                 </label>
                 <div className="mt-1">
-                  <SearchableArticleSelect
-                    value={currentItem.articleId}
-                    onChange={handleArticleSelect}
-                    placeholder="Buscar artículo... (mínimo 3 caracteres)"
-                    searchEndpoint="/api/articles/search"
-                    minChars={3}
-                    debounceMs={1000}
+                  <SearchableProductSelect
+                    value={currentItem.productId}
+                    onChange={(value) => {
+                      setCurrentItem((prev) => ({
+                        ...prev,
+                        productId: value,
+                      }));
+                      if (fieldErrors.productId) {
+                        setFieldErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.productId;
+                          return newErrors;
+                        });
+                      }
+                    }}
+                    placeholder="Buscar producto... (mínimo 3 caracteres)"
                   />
                 </div>
-                {fieldErrors.articleId && (
+                {fieldErrors.productId && (
                   <p className="mt-1 text-sm text-red-600">
-                    {fieldErrors.articleId}
+                    {fieldErrors.productId}
                   </p>
                 )}
               </div>
+              {currentItem.productId && (
+                <div>
+                  <label
+                    htmlFor="bulk-item-article"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Artículo *
+                  </label>
+                  {exampleArticles.length > 0 && (
+                    <div className="mb-2 rounded-md bg-gray-50 p-2 text-xs text-gray-600">
+                      <span className="font-medium">Ejemplos: </span>
+                      {exampleArticles.map((article, index) => (
+                        <span key={article.id}>
+                          {article.name}
+                          {index < exampleArticles.length - 1 ? ', ' : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-1">
+                    <SearchableArticleSelect
+                      value={currentItem.articleId}
+                      onChange={handleArticleSelect}
+                      placeholder="Buscar artículo..."
+                      searchEndpoint="/api/articles/search"
+                      minChars={3}
+                      debounceMs={1000}
+                      productId={currentItem.productId}
+                    />
+                  </div>
+                  {fieldErrors.articleId && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {fieldErrors.articleId}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label

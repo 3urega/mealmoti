@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import StoreModal from '@/components/StoreModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
 interface Store {
@@ -42,8 +41,6 @@ export default function StoresPage() {
   const [total, setTotal] = useState(0);
   const [limit] = useState(50);
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingStore, setEditingStore] = useState<Store | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingStore, setDeletingStore] = useState<Store | null>(null);
   const [deleteError, setDeleteError] = useState('');
@@ -112,13 +109,11 @@ export default function StoresPage() {
   };
 
   const handleCreateClick = () => {
-    setEditingStore(null);
-    setShowModal(true);
+    router.push('/app/stores/new');
   };
 
   const handleEditClick = (store: Store) => {
-    setEditingStore(store);
-    setShowModal(true);
+    router.push(`/app/stores/${store.id}/edit`);
   };
 
   const handleDeleteClick = (store: Store) => {
@@ -162,11 +157,6 @@ export default function StoresPage() {
     }
   };
 
-  const handleModalSuccess = () => {
-    setShowModal(false);
-    setEditingStore(null);
-    fetchStores();
-  };
 
   const handleClearFilters = () => {
     setSearch('');
@@ -398,16 +388,6 @@ export default function StoresPage() {
         </>
       )}
 
-      {/* Modal de Crear/Editar */}
-      <StoreModal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          setEditingStore(null);
-        }}
-        store={editingStore}
-        onSuccess={handleModalSuccess}
-      />
 
       {/* Modal de Confirmar Eliminación */}
       <ConfirmDeleteModal

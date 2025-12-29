@@ -120,18 +120,28 @@ export default function StoreDetailPage() {
         >
           ← Volver a comercios
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">{store.name}</h1>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="rounded bg-gray-100 px-2 py-1 text-sm text-gray-600">
-            {typeLabels[store.type] || store.type}
-          </span>
-          <span className="text-sm text-gray-500">
-            {store.isGeneral ? 'General' : 'Particular'}
-          </span>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900">{store.name}</h1>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="rounded bg-gray-100 px-2 py-1 text-sm text-gray-600">
+                {typeLabels[store.type] || store.type}
+              </span>
+              <span className="text-sm text-gray-500">
+                {store.isGeneral ? 'General' : 'Particular'}
+              </span>
+            </div>
+            {store.address && (
+              <p className="mt-2 text-gray-600">{store.address}</p>
+            )}
+          </div>
+          <button
+            onClick={() => router.push(`/app/stores/${storeId}/edit`)}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Editar
+          </button>
         </div>
-        {store.address && (
-          <p className="mt-2 text-gray-600">{store.address}</p>
-        )}
       </div>
 
       {/* Filtros */}

@@ -97,8 +97,16 @@ export default function PurchaseModal({
   const [purchasedAt, setPurchasedAt] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<PurchaseItem[]>([]);
+  const [inputMode, setInputMode] = useState<'total' | 'unit'>('total'); // Modo por defecto: precio total
   const [editingItems, setEditingItems] = useState<
-    Record<string, { purchasedQuantity: string; price: string; notes: string; storeId: string }>
+    Record<string, { 
+      purchasedQuantity: string; 
+      totalPaid?: string; // Precio pagado (total) - modo 'total'
+      unitPrice?: string; // Precio unitario - modo 'unit'
+      price: string; // Mantener para compatibilidad, siempre será precio unitario calculado
+      notes: string; 
+      storeId: string;
+    }>
   >({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -110,6 +118,7 @@ export default function PurchaseModal({
       setEditingItems({});
       setPurchasedAt('');
       setNotes('');
+      setInputMode('total'); // Resetear al modo por defecto
       return;
     }
 
@@ -130,15 +139,33 @@ export default function PurchaseModal({
       setPurchasedAt(new Date().toISOString().split('T')[0]);
       setNotes('');
 
-      // Inicializar editingItems
-      const editing: Record<string, { purchasedQuantity: string; price: string; notes: string; storeId: string }> = {};
+      // Inicializar editingItems según el modo activo
+      const editing: Record<string, { 
+        purchasedQuantity: string; 
+        totalPaid?: string;
+        unitPrice?: string;
+        price: string;
+        notes: string; 
+        storeId: string;
+      }> = {};
       formattedItems.forEach((item) => {
+        const qty = item.purchasedQuantity;
+        const unitPrice = item.price || 0;
+        const totalPaid = qty * unitPrice;
+        
         editing[item.id] = {
-          purchasedQuantity: item.purchasedQuantity.toString(),
-          price: item.price.toString(),
+          purchasedQuantity: qty.toString(),
+          price: unitPrice.toString(), // Siempre mantener precio unitario calculado
           notes: item.notes || '',
           storeId: item.store?.id || '',
         };
+        
+        // Inicializar según el modo activo
+        if (inputMode === 'total') {
+          editing[item.id].totalPaid = totalPaid.toString();
+        } else {
+          editing[item.id].unitPrice = unitPrice.toString();
+        }
       });
       setEditingItems(editing);
     } else if (mode === 'edit' && purchase) {
@@ -146,75 +173,145 @@ export default function PurchaseModal({
       setPurchasedAt(new Date(purchase.purchasedAt).toISOString().split('T')[0]);
       setNotes(purchase.notes || '');
 
-      // Inicializar editingItems
-      const editing: Record<string, { purchasedQuantity: string; price: string; notes: string; storeId: string }> = {};
+      // Inicializar editingItems según el modo activo
+      const editing: Record<string, { 
+        purchasedQuantity: string; 
+        totalPaid?: string;
+        unitPrice?: string;
+        price: string;
+        notes: string; 
+        storeId: string;
+      }> = {};
       purchase.items.forEach((item) => {
+        const qty = item.purchasedQuantity;
+        const unitPrice = item.price || 0;
+        const totalPaid = qty * unitPrice;
+        
         editing[item.id] = {
-          purchasedQuantity: item.purchasedQuantity.toString(),
-          price: item.price.toString(),
+          purchasedQuantity: qty.toString(),
+          price: unitPrice.toString(), // Siempre mantener precio unitario calculado
           notes: item.notes || '',
           storeId: item.store?.id || '',
         };
+        
+        // Inicializar según el modo activo
+        if (inputMode === 'total') {
+          editing[item.id].totalPaid = totalPaid.toString();
+        } else {
+          editing[item.id].unitPrice = unitPrice.toString();
+        }
       });
       setEditingItems(editing);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, mode]); // Solo dependemos de isOpen y mode para evitar loops infinitos
+  }, [isOpen, mode, inputMode]); // Incluir inputMode para recalcular cuando cambie
+
+  // Calcular precio unitario desde precio total
+  const calculateUnitPrice = (totalPaid: number, quantity: number): number => {
+    if (quantity <= 0) return 0;
+    return totalPaid / quantity;
+  };
+
+  // Calcular precio total desde precio unitario
+  const calculateTotalPaid = (unitPrice: number, quantity: number): number => {
+    return unitPrice * quantity;
+  };
 
   const calculateSubtotal = (itemId: string): number => {
     const editing = editingItems[itemId];
     if (!editing) return 0;
-    const qty = parseFloat(editing.purchasedQuantity) || 0;
-    const price = parseFloat(editing.price) || 0;
-    return qty * price;
+    
+    if (inputMode === 'total') {
+      // En modo total, usar totalPaid directamente
+      return parseFloat(editing.totalPaid || '0') || 0;
+    } else {
+      // En modo unit, calcular desde precio unitario
+      const qty = parseFloat(editing.purchasedQuantity) || 0;
+      const unitPrice = parseFloat(editing.unitPrice || editing.price || '0') || 0;
+      return calculateTotalPaid(unitPrice, qty);
+    }
   };
 
   const calculateTotal = (): number => {
     return items.reduce((sum, item) => {
-      if (mode === 'edit') {
-        const editing = editingItems[item.id];
-        const price = parseFloat(editing?.price || '0') || 0;
-        // Solo sumar si el precio es mayor que 0
-        return price > 0 ? sum + calculateSubtotal(item.id) : sum;
-      }
-      // Solo sumar si el precio es mayor que 0
-      return item.price > 0 ? sum + item.subtotal : sum;
+      const subtotal = calculateSubtotal(item.id);
+      // Solo sumar si el subtotal es mayor que 0
+      return subtotal > 0 ? sum + subtotal : sum;
     }, 0);
   };
 
   const handleItemChange = (
     itemId: string,
-    field: 'purchasedQuantity' | 'price' | 'notes' | 'storeId',
+    field: 'purchasedQuantity' | 'totalPaid' | 'unitPrice' | 'notes' | 'storeId',
     value: string
   ) => {
-    // Actualizar editingItems
     setEditingItems((prev) => {
       const current = prev[itemId];
       if (!current) {
         // Si no existe, obtener valores del item original
         const item = items.find((i) => i.id === itemId);
-        return {
-          ...prev,
-          [itemId]: {
-            purchasedQuantity: item?.purchasedQuantity.toString() || '0',
-            price: item?.price.toString() || '0',
-            notes: item?.notes || '',
-            storeId: item?.store?.id || '',
-            [field]: value,
-          },
+        const qty = item?.purchasedQuantity || 0;
+        const unitPrice = item?.price || 0;
+        const totalPaid = qty * unitPrice;
+        
+        const base = {
+          purchasedQuantity: qty.toString(),
+          price: unitPrice.toString(),
+          notes: item?.notes || '',
+          storeId: item?.store?.id || '',
         };
+        
+        if (inputMode === 'total') {
+          return {
+            ...prev,
+            [itemId]: {
+              ...base,
+              totalPaid: totalPaid.toString(),
+              [field]: value,
+            },
+          };
+        } else {
+          return {
+            ...prev,
+            [itemId]: {
+              ...base,
+              unitPrice: unitPrice.toString(),
+              [field]: value,
+            },
+          };
+        }
       }
+      
+      const updated = { ...current, [field]: value };
+      
+      // Recalcular según el modo y el campo cambiado
+      if (inputMode === 'total') {
+        if (field === 'totalPaid' || field === 'purchasedQuantity') {
+          const totalPaid = parseFloat(field === 'totalPaid' ? value : updated.totalPaid || '0') || 0;
+          const qty = parseFloat(field === 'purchasedQuantity' ? value : updated.purchasedQuantity) || 0;
+          const unitPrice = calculateUnitPrice(totalPaid, qty);
+          updated.price = unitPrice.toString();
+        }
+      } else {
+        // Modo unit
+        if (field === 'unitPrice' || field === 'purchasedQuantity') {
+          const unitPrice = parseFloat(field === 'unitPrice' ? value : updated.unitPrice || updated.price || '0') || 0;
+          const qty = parseFloat(field === 'purchasedQuantity' ? value : updated.purchasedQuantity) || 0;
+          const totalPaid = calculateTotalPaid(unitPrice, qty);
+          updated.price = unitPrice.toString();
+          // También actualizar totalPaid para cuando cambie de modo
+          updated.totalPaid = totalPaid.toString();
+        }
+      }
+      
       return {
         ...prev,
-        [itemId]: {
-          ...current,
-          [field]: value,
-        },
+        [itemId]: updated,
       };
     });
 
-    // Actualizar subtotal en tiempo real para modo edición
-    if (mode === 'edit' && (field === 'purchasedQuantity' || field === 'price')) {
+    // Actualizar subtotal en tiempo real
+    if (mode === 'edit' && (field === 'purchasedQuantity' || field === 'totalPaid' || field === 'unitPrice')) {
       setItems((prev) =>
         prev.map((item) => {
           if (item.id === itemId) {
@@ -222,11 +319,10 @@ export default function PurchaseModal({
               purchasedQuantity: item.purchasedQuantity.toString(),
               price: item.price.toString(),
             };
-            const newQty = field === 'purchasedQuantity' ? parseFloat(value) : parseFloat(editing.purchasedQuantity);
-            const newPrice = field === 'price' ? parseFloat(value) : parseFloat(editing.price);
+            const subtotal = calculateSubtotal(itemId);
             return {
               ...item,
-              subtotal: (newQty || 0) * (newPrice || 0),
+              subtotal,
             };
           }
           return item;
@@ -251,19 +347,74 @@ export default function PurchaseModal({
     }
   };
 
+  // Función para cambiar entre modos
+  const handleModeChange = (newMode: 'total' | 'unit') => {
+    if (newMode === inputMode) return;
+    
+    setEditingItems((prev) => {
+      const updated: typeof prev = {};
+      
+      Object.keys(prev).forEach((itemId) => {
+        const current = prev[itemId];
+        const qty = parseFloat(current.purchasedQuantity) || 0;
+        
+        if (newMode === 'total') {
+          // Cambiar de unit a total: calcular totalPaid desde unitPrice
+          const unitPrice = parseFloat(current.unitPrice || current.price || '0') || 0;
+          const totalPaid = calculateTotalPaid(unitPrice, qty);
+          updated[itemId] = {
+            ...current,
+            totalPaid: totalPaid.toString(),
+            unitPrice: undefined,
+            price: unitPrice.toString(), // Mantener precio unitario calculado
+          };
+        } else {
+          // Cambiar de total a unit: calcular unitPrice desde totalPaid
+          const totalPaid = parseFloat(current.totalPaid || '0') || 0;
+          const unitPrice = calculateUnitPrice(totalPaid, qty);
+          updated[itemId] = {
+            ...current,
+            unitPrice: unitPrice.toString(),
+            totalPaid: undefined,
+            price: unitPrice.toString(), // Mantener precio unitario calculado
+          };
+        }
+      });
+      
+      return updated;
+    });
+    
+    setInputMode(newMode);
+  };
+
   const handleSave = async () => {
     setError('');
     setSaving(true);
 
     try {
+      // Función auxiliar para obtener precio unitario desde editingItems según el modo
+      const getUnitPrice = (editing: typeof editingItems[string]): number => {
+        if (inputMode === 'total') {
+          const totalPaid = parseFloat(editing.totalPaid || '0') || 0;
+          const qty = parseFloat(editing.purchasedQuantity) || 0;
+          return qty > 0 ? calculateUnitPrice(totalPaid, qty) : 0;
+        } else {
+          // Modo unit: usar unitPrice o price como fallback
+          return parseFloat(editing.unitPrice || editing.price || '0') || 0;
+        }
+      };
+
       if (mode === 'create') {
         // En modo creación, también enviar items con precios y cantidades editados
         const itemsToCreate = items.map((item) => {
           const editing = editingItems[item.id];
+          const unitPrice = getUnitPrice(editing);
+          const qty = parseFloat(editing.purchasedQuantity) || item.purchasedQuantity;
+          
           return {
             id: item.id.replace('temp-', ''), // Remover el prefijo temporal
-            purchasedQuantity: parseFloat(editing.purchasedQuantity) || item.purchasedQuantity,
-            price: parseFloat(editing.price) || item.price,
+            purchasedQuantity: qty,
+            price: unitPrice, // Siempre enviar precio unitario calculado correctamente
             notes: editing.notes || null,
             storeId: editing.storeId || null,
           };
@@ -278,10 +429,13 @@ export default function PurchaseModal({
         // Modo edición: enviar items actualizados
         const itemsToUpdate = items.map((item) => {
           const editing = editingItems[item.id];
+          const unitPrice = getUnitPrice(editing);
+          const qty = parseFloat(editing.purchasedQuantity) || item.purchasedQuantity;
+          
           return {
             id: item.id,
-            purchasedQuantity: parseFloat(editing.purchasedQuantity) || item.purchasedQuantity,
-            price: parseFloat(editing.price) || item.price,
+            purchasedQuantity: qty,
+            price: unitPrice, // Siempre enviar precio unitario calculado correctamente
             notes: editing.notes || null,
             storeId: editing.storeId || null,
           };
@@ -305,11 +459,17 @@ export default function PurchaseModal({
 
   const total = calculateTotal();
   const itemsWithPrice = items.filter((item) => {
-    if (mode === 'edit') {
-      const editing = editingItems[item.id];
-      return editing && parseFloat(editing.price) > 0;
+    const editing = editingItems[item.id];
+    if (!editing) return false;
+    
+    // Verificar según el modo activo
+    if (inputMode === 'total') {
+      const totalPaid = parseFloat(editing.totalPaid || '0') || 0;
+      return totalPaid > 0;
+    } else {
+      const unitPrice = parseFloat(editing.unitPrice || editing.price || '0') || 0;
+      return unitPrice > 0;
     }
-    return item.price > 0;
   });
 
   return (
@@ -342,6 +502,44 @@ export default function PurchaseModal({
               {error}
             </div>
           )}
+
+          {/* Toggle de modo de entrada */}
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700">
+                Modo de entrada de precios
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {inputMode === 'total'
+                  ? 'Introduce el precio pagado y la cantidad, calcularemos el precio unitario'
+                  : 'Introduce el precio unitario y la cantidad, calcularemos el precio pagado'}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleModeChange('total')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  inputMode === 'total'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                Precio Total
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange('unit')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  inputMode === 'unit'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                Precio Unitario
+              </button>
+            </div>
+          </div>
 
           {/* Campos de fecha y notas */}
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -383,7 +581,20 @@ export default function PurchaseModal({
                 notes: item.notes || '',
                 storeId: item.store?.id || '',
               };
-              const subtotal = mode === 'edit' ? calculateSubtotal(item.id) : item.subtotal;
+              const subtotal = calculateSubtotal(item.id);
+              
+              // Calcular valores según el modo
+              const qty = parseFloat(editing.purchasedQuantity) || 0;
+              let totalPaidValue = 0;
+              let unitPriceValue = 0;
+              
+              if (inputMode === 'total') {
+                totalPaidValue = parseFloat(editing.totalPaid || '0') || 0;
+                unitPriceValue = qty > 0 ? calculateUnitPrice(totalPaidValue, qty) : 0;
+              } else {
+                unitPriceValue = parseFloat(editing.unitPrice || editing.price || '0') || 0;
+                totalPaidValue = calculateTotalPaid(unitPriceValue, qty);
+              }
 
               return (
                 <div
@@ -429,21 +640,68 @@ export default function PurchaseModal({
                         </span>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Precio unitario (€)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={editing.price}
-                        onChange={(e) =>
-                          handleItemChange(item.id, 'price', e.target.value)
-                        }
-                        className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                      />
-                    </div>
+                    
+                    {inputMode === 'total' ? (
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Precio pagado (€) *
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editing.totalPaid || ''}
+                            onChange={(e) =>
+                              handleItemChange(item.id, 'totalPaid', e.target.value)
+                            }
+                            className="w-full rounded-md border border-blue-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            Precio unitario calculado (€)
+                          </label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={unitPriceValue > 0 ? unitPriceValue.toFixed(2) : '0.00'}
+                            className="w-full rounded-md border border-gray-200 bg-gray-100 px-2 py-1.5 text-sm text-gray-600 cursor-not-allowed"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Precio unitario (€) *
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editing.unitPrice || editing.price || ''}
+                            onChange={(e) =>
+                              handleItemChange(item.id, 'unitPrice', e.target.value)
+                            }
+                            className="w-full rounded-md border border-blue-300 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-gray-500 mb-1">
+                            Precio pagado calculado (€)
+                          </label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={totalPaidValue > 0 ? totalPaidValue.toFixed(2) : '0.00'}
+                            className="w-full rounded-md border border-gray-200 bg-gray-100 px-2 py-1.5 text-sm text-gray-600 cursor-not-allowed"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {mode === 'edit' && (

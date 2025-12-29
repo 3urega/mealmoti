@@ -8,6 +8,7 @@ import ShareListModal from '@/components/ShareListModal';
 import PurchaseModal from '@/components/PurchaseModal';
 import BulkItemModal from '@/components/BulkItemModal';
 import SearchableArticleSelect from '@/components/SearchableArticleSelect';
+import SearchableProductSelect from '@/components/SearchableProductSelect';
 import { useNotification } from '@/contexts/NotificationContext';
 
 interface Article {
@@ -88,7 +89,9 @@ export default function ListDetailPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [newItemProductId, setNewItemProductId] = useState('');
   const [newItemArticleId, setNewItemArticleId] = useState('');
+  const [exampleArticles, setExampleArticles] = useState<Array<{ id: string; name: string; description?: string | null }>>([]);
   const [newItemStoreId, setNewItemStoreId] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState('');
   const [newItemUnitId, setNewItemUnitId] = useState('');
@@ -214,9 +217,41 @@ export default function ListDetailPage() {
     }
   };
 
+  const fetchExampleArticles = async (productId: string) => {
+    try {
+      const res = await fetch(`/api/articles/search?productId=${encodeURIComponent(productId)}&limit=2`);
+      if (res.ok) {
+        const data = await res.json();
+        setExampleArticles(data.articles || []);
+      } else {
+        setExampleArticles([]);
+      }
+    } catch (err) {
+      console.error('Error al cargar artículos de ejemplo:', err);
+      setExampleArticles([]);
+    }
+  };
+
+  // Obtener artículos de ejemplo cuando se selecciona un producto
+  useEffect(() => {
+    if (newItemProductId) {
+      fetchExampleArticles(newItemProductId);
+      // Limpiar la selección de artículo cuando cambia el producto
+      setNewItemArticleId('');
+    } else {
+      setExampleArticles([]);
+      setNewItemArticleId('');
+    }
+  }, [newItemProductId]);
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!newItemProductId) {
+      setError('Debes seleccionar un producto');
+      return;
+    }
 
     if (!newItemArticleId) {
       setError('Debes seleccionar un artículo');
@@ -252,7 +287,9 @@ export default function ListDetailPage() {
         return;
       }
 
+      setNewItemProductId('');
       setNewItemArticleId('');
+      setExampleArticles([]);
       setNewItemStoreId('');
       setNewItemQuantity('');
       // Restaurar unidad por defecto
@@ -682,24 +719,55 @@ export default function ListDetailPage() {
           <form onSubmit={handleAddItem} className="space-y-4">
             <div>
               <label
-                htmlFor="itemArticle"
+                htmlFor="itemProduct"
                 className="block text-sm font-medium text-gray-700"
               >
-                Artículo *
+                Producto *
               </label>
               <div className="mt-1">
-                <SearchableArticleSelect
-                  value={newItemArticleId}
+                <SearchableProductSelect
+                  value={newItemProductId}
                   onChange={(value) => {
-                    setNewItemArticleId(value);
+                    setNewItemProductId(value);
                   }}
-                  placeholder="Buscar artículo... (mínimo 3 caracteres)"
-                  searchEndpoint="/api/articles/search"
-                  minChars={3}
-                  debounceMs={1000}
+                  placeholder="Buscar producto... (mínimo 3 caracteres)"
                 />
               </div>
             </div>
+            {newItemProductId && (
+              <div>
+                <label
+                  htmlFor="itemArticle"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Artículo *
+                </label>
+                {exampleArticles.length > 0 && (
+                  <div className="mb-2 rounded-md bg-gray-50 p-2 text-xs text-gray-600">
+                    <span className="font-medium">Ejemplos: </span>
+                    {exampleArticles.map((article, index) => (
+                      <span key={article.id}>
+                        {article.name}
+                        {index < exampleArticles.length - 1 ? ', ' : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-1">
+                  <SearchableArticleSelect
+                    value={newItemArticleId}
+                    onChange={(value) => {
+                      setNewItemArticleId(value);
+                    }}
+                    placeholder="Buscar artículo..."
+                    searchEndpoint="/api/articles/search"
+                    minChars={3}
+                    debounceMs={1000}
+                    productId={newItemProductId}
+                  />
+                </div>
+              </div>
+            )}
             <div>
               <label
                 htmlFor="itemStore"
@@ -780,7 +848,7 @@ export default function ListDetailPage() {
             </div>
             <button
               type="submit"
-              disabled={adding || !newItemArticleId}
+              disabled={adding || !newItemProductId || !newItemArticleId}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {adding ? 'Agregando...' : 'Agregar'}
