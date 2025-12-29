@@ -30,7 +30,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function UsersPage() {
   const router = useRouter();
-  const { showNotification } = useNotification();
+  const { showToast } = useNotification();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -126,7 +126,7 @@ export default function UsersPage() {
   const handleModalSuccess = () => {
     setShowModal(false);
     fetchUsers();
-    showNotification('Usuario creado correctamente', 'success');
+    showToast('success', 'Usuario creado correctamente');
   };
 
   const handleClearFilters = () => {

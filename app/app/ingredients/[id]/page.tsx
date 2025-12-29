@@ -29,7 +29,7 @@ interface Ingredient {
 export default function IngredientEditPage() {
   const params = useParams();
   const router = useRouter();
-  const { showNotification } = useNotification();
+  const { showToast } = useNotification();
   const ingredientId = params.id as string;
 
   const [ingredient, setIngredient] = useState<Ingredient | null>(null);
@@ -162,7 +162,7 @@ export default function IngredientEditPage() {
         return;
       }
 
-      showNotification('Ingrediente actualizado correctamente', 'success');
+      showToast('success', 'Ingrediente actualizado correctamente');
       router.push('/app/ingredients');
     } catch (err) {
       setError('Error de conexión');
