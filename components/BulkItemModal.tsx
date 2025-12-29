@@ -188,17 +188,48 @@ export default function BulkItemModal({
     setPendingItems(pendingItems.filter((item) => item.id !== id));
   };
 
-  const handleEditInList = (id: string) => {
+  const handleEditInList = async (id: string) => {
     const item = pendingItems.find((item) => item.id === id);
     if (item) {
-      setCurrentItem({
-        articleId: item.articleId,
-        articleName: item.articleName,
-        quantity: item.quantity,
-        unitId: item.unitId,
-        storeId: item.storeId,
-        notes: item.notes,
-      });
+      // Obtener el productId del artículo
+      try {
+        const res = await fetch(`/api/articles/${item.articleId}`);
+        const data = await res.json();
+        if (res.ok && data.article && data.article.productId) {
+          setCurrentItem({
+            productId: data.article.productId,
+            articleId: item.articleId,
+            articleName: item.articleName,
+            quantity: item.quantity,
+            unitId: item.unitId,
+            storeId: item.storeId,
+            notes: item.notes,
+          });
+        } else {
+          // Si no se puede obtener el productId, establecer valores sin él
+          setCurrentItem({
+            productId: '',
+            articleId: item.articleId,
+            articleName: item.articleName,
+            quantity: item.quantity,
+            unitId: item.unitId,
+            storeId: item.storeId,
+            notes: item.notes,
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching article:', err);
+        // En caso de error, establecer valores sin productId
+        setCurrentItem({
+          productId: '',
+          articleId: item.articleId,
+          articleName: item.articleName,
+          quantity: item.quantity,
+          unitId: item.unitId,
+          storeId: item.storeId,
+          notes: item.notes,
+        });
+      }
       handleRemoveFromList(id);
     }
   };
