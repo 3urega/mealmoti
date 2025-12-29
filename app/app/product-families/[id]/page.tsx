@@ -30,7 +30,7 @@ export default function ProductFamilyDetailPage() {
   const params = useParams();
   const router = useRouter();
   const familyId = params.id as string;
-  const { showNotification } = useNotification();
+  const { showToast } = useNotification();
 
   const [family, setFamily] = useState<ProductFamily | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +94,7 @@ export default function ProductFamilyDetailPage() {
 
       setSelectedProductId('');
       fetchFamily();
-      showNotification('Producto añadido a la familia correctamente', 'success');
+      showToast('success', 'Producto añadido a la familia correctamente');
     } catch (err) {
       setAddError('Error de conexión');
       console.error('Error adding product:', err);
@@ -131,7 +131,7 @@ export default function ProductFamilyDetailPage() {
       setShowDeleteModal(false);
       setRemovingProductId(null);
       fetchFamily();
-      showNotification('Producto removido de la familia correctamente', 'success');
+      showToast('success', 'Producto removido de la familia correctamente');
     } catch (err) {
       setDeleteError('Error de conexión');
       console.error('Error removing product:', err);
