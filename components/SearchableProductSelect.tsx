@@ -58,9 +58,15 @@ export default function SearchableProductSelect({
       if (!selectedProduct || selectedProduct.id !== value) {
         setLoadingProduct(true);
         fetch(`/api/products/${value}`)
-          .then((res) => res.json())
+          .then((res) => {
+            if (res.ok) {
+              return res.json();
+            } else {
+              throw new Error('Product not found');
+            }
+          })
           .then((data) => {
-            if (res.ok && data.product && data.product.id === value) {
+            if (data.product && data.product.id === value) {
               setSelectedProduct(data.product);
               setSearchQuery(data.product.name);
             } else {
