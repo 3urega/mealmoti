@@ -42,10 +42,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
+      // Búsqueda parcial case-insensitive en el campo name
+      // Esto busca cualquier ingrediente cuyo nombre contenga el texto de búsqueda
+      // Ejemplo: "poll" encontrará "pollo desmenuzado"
       where.name = {
-        contains: search,
+        contains: search.trim(),
         mode: 'insensitive',
       };
+      console.log('Buscando ingredientes con:', { search: search.trim(), field: 'name' });
     }
 
     // Obtener total para paginación
@@ -68,6 +72,10 @@ export async function GET(request: NextRequest) {
       take: limit,
       skip: offset,
     });
+
+    if (search) {
+      console.log(`Encontrados ${ingredients.length} ingredientes para búsqueda: "${search.trim()}" en campo 'name'`);
+    }
 
     return NextResponse.json(
       {

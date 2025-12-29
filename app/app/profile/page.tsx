@@ -49,10 +49,10 @@ export default function ProfilePage() {
   };
 
   // Formatear fecha
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'No disponible';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
+  const formatDate = (date?: string | Date) => {
+    if (!date) return 'No disponible';
+    const dateObj = date instanceof Date ? date : new Date(date);
+    return dateObj.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
