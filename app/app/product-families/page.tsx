@@ -266,7 +266,12 @@ export default function ProductFamiliesPage() {
                 {families.map((family) => (
                   <tr key={family.id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                      {family.name}
+                      <Link
+                        href={`/app/product-families/${family.id}`}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        {family.name}
+                      </Link>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {family.description || (

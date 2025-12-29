@@ -42,22 +42,26 @@ async function main() {
 
   console.log('✅ Unidades creadas:', [unitKg.symbol, unitUnidades.symbol, unitGr.symbol].join(', '));
 
-  // Crear usuario de prueba
+  // Crear usuario de prueba con rol superadmin
   const hashedPassword = await hashPassword('password123');
   
   const user = await prisma.user.upsert({
     where: { email: 'test@mealmoti.com' },
-    update: {},
+    update: {
+      role: 'superadmin', // Asegurar que el usuario tenga rol superadmin
+    },
     create: {
       email: 'test@mealmoti.com',
       name: 'Usuario de Prueba',
       password: hashedPassword,
+      role: 'superadmin',
     },
   });
 
   console.log('✅ Usuario de prueba creado:');
   console.log('   Email: test@mealmoti.com');
-  console.log('   Contraseña: password123\n');
+  console.log('   Contraseña: password123');
+  console.log(`   Rol: ${user.role}\n`);
 
   // Crear productos de ejemplo
   const productLeche = await prisma.product.upsert({
@@ -362,6 +366,7 @@ async function main() {
   console.log('\n📝 Credenciales para desarrollo:');
   console.log('   Email: test@mealmoti.com');
   console.log('   Contraseña: password123');
+  console.log('   Rol: superadmin');
   console.log('\n📦 Datos creados:');
   console.log('   - 4 Productos');
   console.log('   - 4 Artículos');
