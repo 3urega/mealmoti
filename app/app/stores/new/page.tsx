@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotification } from '@/contexts/NotificationContext';
+import MapboxLocationPicker from '@/components/MapboxLocationPicker';
 
 const typeOptions = [
   { value: 'supermarket', label: 'Supermercado' },
@@ -18,6 +19,8 @@ export default function NewStorePage() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'supermarket' | 'specialty' | 'online' | 'other'>('supermarket');
   const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [isGeneral, setIsGeneral] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -49,6 +52,8 @@ export default function NewStorePage() {
         name: name.trim(),
         type,
         address: address.trim() || undefined,
+        latitude: latitude !== null ? latitude : undefined,
+        longitude: longitude !== null ? longitude : undefined,
         isGeneral,
       };
 
@@ -167,22 +172,18 @@ export default function NewStorePage() {
           </div>
 
           <div>
-            <label
-              htmlFor="address"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Dirección
-            </label>
-            <input
-              id="address"
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-              placeholder="Ej: Calle Principal 123, Madrid"
+            <MapboxLocationPicker
+              initialLatitude={latitude}
+              initialLongitude={longitude}
+              initialAddress={address}
+              onLocationChange={(lat, lng, addr) => {
+                setLatitude(lat);
+                setLongitude(lng);
+                setAddress(addr || '');
+              }}
             />
-            <p className="mt-1 text-xs text-gray-500">
-              Opcional. Útil para comercios físicos.
+            <p className="mt-2 text-xs text-gray-500">
+              Opcional. Busca una dirección o selecciona una ubicación en el mapa.
             </p>
           </div>
 

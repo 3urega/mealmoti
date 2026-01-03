@@ -7,6 +7,8 @@ const updateStoreSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido').optional(),
   type: z.enum(['supermarket', 'specialty', 'online', 'other']).optional(),
   address: z.string().optional().nullable(),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
   isGeneral: z.boolean().optional(),
 });
 
@@ -93,6 +95,8 @@ export async function GET(
       name: store.name,
       type: store.type,
       address: store.address,
+      latitude: store.latitude,
+      longitude: store.longitude,
       isGeneral: store.isGeneral,
       createdById: store.createdById,
       articles: store.articles.map((as: typeof store.articles[0]) => ({
@@ -192,6 +196,12 @@ export async function PUT(
     if (validatedData.address !== undefined) {
       updateData.address = validatedData.address?.trim() || null;
     }
+    if (validatedData.latitude !== undefined) {
+      updateData.latitude = validatedData.latitude ?? null;
+    }
+    if (validatedData.longitude !== undefined) {
+      updateData.longitude = validatedData.longitude ?? null;
+    }
     if (validatedData.isGeneral !== undefined) {
       updateData.isGeneral = validatedData.isGeneral;
       // Si cambia a particular, asignar createdById
@@ -224,6 +234,8 @@ export async function PUT(
           name: updatedStore.name,
           type: updatedStore.type,
           address: updatedStore.address,
+          latitude: updatedStore.latitude,
+          longitude: updatedStore.longitude,
           isGeneral: updatedStore.isGeneral,
           createdById: updatedStore.createdById,
           articlesCount: updatedStore._count.articles,

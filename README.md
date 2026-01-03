@@ -22,7 +22,13 @@ npm install
 # Crear archivo .env con:
 DATABASE_URL="postgresql://usuario:password@localhost:5432/mealmoti?schema=public"
 NODE_ENV="development"
+NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="tu_token_de_mapbox_aqui"
 ```
+
+**Nota sobre Mapbox:** Para usar el selector de ubicación en los comercios, necesitas un token de acceso de Mapbox:
+- Regístrate en [Mapbox](https://account.mapbox.com/)
+- Crea un token de acceso público en [tus tokens](https://account.mapbox.com/access-tokens/)
+- Copia el token y añádelo a tu archivo `.env` como `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
 
 4. Configurar base de datos:
 ```bash
@@ -94,6 +100,7 @@ La aplicación usa cookies httpOnly para manejar sesiones. Las contraseñas se h
 - ✅ Marcar items como completados
 - ✅ Compartir listas con otros usuarios
 - ✅ Control de permisos (solo lectura / edición)
+- ✅ Selección de ubicación de comercios con Mapbox
 
 ## 🛠️ Stack Tecnológico
 
@@ -104,6 +111,7 @@ La aplicación usa cookies httpOnly para manejar sesiones. Las contraseñas se h
 - **Estilos:** Tailwind CSS
 - **Validación:** Zod
 - **Hash de contraseñas:** bcryptjs
+- **Mapas:** Mapbox GL JS (para selección de ubicación de comercios)
 
 ## 📚 Documentación
 

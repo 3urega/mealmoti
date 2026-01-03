@@ -140,6 +140,8 @@ model Store {
   name        String
   type        String   @default("other") // "supermarket", "specialty", "online", "other"
   address     String?
+  latitude    Float?
+  longitude   Float?
   isGeneral   Boolean  @default(false) // false = particular, true = general
   createdById String?
   createdBy   User?    @relation("StoreCreator", fields: [createdById], references: [id], onDelete: SetNull)

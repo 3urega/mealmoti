@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useNotification } from '@/contexts/NotificationContext';
+import MapboxLocationPicker from '@/components/MapboxLocationPicker';
 
 interface Store {
   id: string;
   name: string;
   type: string;
   address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   isGeneral: boolean;
   createdById?: string | null;
 }
@@ -35,6 +38,8 @@ export default function EditStorePage() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'supermarket' | 'specialty' | 'online' | 'other'>('supermarket');
   const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [isGeneral, setIsGeneral] = useState(false);
 
   useEffect(() => {
@@ -57,6 +62,8 @@ export default function EditStorePage() {
       setName(storeData.name);
       setType(storeData.type as 'supermarket' | 'specialty' | 'online' | 'other');
       setAddress(storeData.address || '');
+      setLatitude(storeData.latitude ?? null);
+      setLongitude(storeData.longitude ?? null);
       setIsGeneral(storeData.isGeneral);
     } catch (err) {
       setError('Error de conexión');
@@ -91,6 +98,8 @@ export default function EditStorePage() {
         name: name.trim(),
         type,
         address: address.trim() || undefined,
+        latitude: latitude !== null ? latitude : undefined,
+        longitude: longitude !== null ? longitude : undefined,
         isGeneral,
       };
 
@@ -237,22 +246,18 @@ export default function EditStorePage() {
           </div>
 
           <div>
-            <label
-              htmlFor="address"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Dirección
-            </label>
-            <input
-              id="address"
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-              placeholder="Ej: Calle Principal 123, Madrid"
+            <MapboxLocationPicker
+              initialLatitude={latitude}
+              initialLongitude={longitude}
+              initialAddress={address}
+              onLocationChange={(lat, lng, addr) => {
+                setLatitude(lat);
+                setLongitude(lng);
+                setAddress(addr || '');
+              }}
             />
-            <p className="mt-1 text-xs text-gray-500">
-              Opcional. Útil para comercios físicos.
+            <p className="mt-2 text-xs text-gray-500">
+              Opcional. Busca una dirección o selecciona una ubicación en el mapa.
             </p>
           </div>
 

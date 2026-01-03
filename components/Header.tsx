@@ -212,17 +212,18 @@ export default function Header() {
                             >
                               Usuarios
                             </Link>
+                            <Link
+                              href="/app/stores"
+                              onClick={() => setShowManagementMenu(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Comercios
+                            </Link>
                           </div>
                         </div>
                       )}
                     </div>
                   )}
-                  <Link
-                    href="/app/stores"
-                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
-                  >
-                    Comercios
-                  </Link>
                   <Link
                     href="/app/recipes"
                     className="text-sm font-medium text-gray-700 hover:text-gray-900"
@@ -421,16 +422,15 @@ export default function Header() {
                       >
                         Usuarios
                       </Link>
+                      <Link
+                        href="/app/stores"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                      >
+                        Comercios
+                      </Link>
                     </div>
                   )}
-
-                  <Link
-                    href="/app/stores"
-                    onClick={() => setShowMobileMenu(false)}
-                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    Comercios
-                  </Link>
                   <Link
                     href="/app/recipes"
                     onClick={() => setShowMobileMenu(false)}
