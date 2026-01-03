@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
+import { canManageStores } from '@/lib/auth';
 import { z } from 'zod';
 
 const createStoreSchema = z.object({
@@ -120,6 +121,17 @@ export async function POST(request: NextRequest) {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verificar permisos para gestionar comercios
+    if (!canManageStores(user.role)) {
+      return NextResponse.json(
+        {
+          error: 'No tienes permisos para realizar esta acción',
+          details: 'Solo usuarios con rol de gestión pueden crear/modificar/eliminar comercios',
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

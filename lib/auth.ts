@@ -90,4 +90,29 @@ export function canReviewInclusionRequests(userRole: UserRole | string): boolean
   return hasRole(userRole, 'productos');
 }
 
+/**
+ * Verifica si un usuario puede gestionar el catálogo (productos, familias, tags, artículos)
+ * Solo usuarios con rol "productos" o superior pueden crear/modificar/eliminar elementos del catálogo
+ */
+export function canManageCatalog(userRole: UserRole | string): boolean {
+  return hasRole(userRole, 'productos');
+}
+
+/**
+ * Verifica si un usuario puede ver el catálogo (solo lectura)
+ * Todos los usuarios autenticados pueden ver el catálogo
+ */
+export function canViewCatalog(userRole: UserRole | string): boolean {
+  // Todos los usuarios autenticados pueden ver el catálogo
+  return true;
+}
+
+/**
+ * Verifica si un usuario puede gestionar comercios/stores
+ * Solo usuarios con rol "productos" o superior pueden crear/modificar/eliminar comercios
+ */
+export function canManageStores(userRole: UserRole | string): boolean {
+  return hasRole(userRole, 'productos');
+}
+
 

@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SearchableArticleSelect from '@/components/SearchableArticleSelect';
 import RequestPublicInclusionButton from '@/components/RequestPublicInclusionButton';
+import TagSelector from '@/components/TagSelector';
+import { useNotification } from '@/contexts/NotificationContext';
 
 interface Article {
   id: string;
@@ -78,6 +80,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
+  const { showToast } = useNotification();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,11 +93,20 @@ export default function ProductDetailPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [user, setUser] = useState<{ id: string } | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [addingTag, setAddingTag] = useState(false);
+  const [tagError, setTagError] = useState('');
 
   useEffect(() => {
     fetchProduct();
     fetchUser();
   }, [productId]);
+
+  useEffect(() => {
+    if (product) {
+      setSelectedTagIds(product.tags.map((tag) => tag.id));
+    }
+  }, [product]);
 
   const fetchUser = async () => {
     try {
@@ -200,6 +212,86 @@ export default function ProductDetailPage() {
       setCreateError('Error de conexión');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleAddTags = async () => {
+    if (selectedTagIds.length === 0) {
+      setTagError('Por favor selecciona al menos un tag');
+      return;
+    }
+
+    setAddingTag(true);
+    setTagError('');
+
+    try {
+      // Obtener tags actuales del producto
+      const currentTagIds = product?.tags.map((tag) => tag.id) || [];
+      
+      // Encontrar tags nuevos que no están asignados
+      const newTagIds = selectedTagIds.filter((id) => !currentTagIds.includes(id));
+
+      if (newTagIds.length === 0) {
+        setTagError('Todos los tags seleccionados ya están asignados');
+        setAddingTag(false);
+        return;
+      }
+
+      // Asignar cada tag nuevo
+      const promises = newTagIds.map((tagId) =>
+        fetch(`/api/products/${productId}/tags`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ tagId }),
+        })
+      );
+
+      const results = await Promise.all(promises);
+      const errors = results.filter((res) => !res.ok);
+
+      if (errors.length > 0) {
+        const errorData = await errors[0].json();
+        setTagError(errorData.error || 'Error al añadir algunos tags');
+        return;
+      }
+
+      // Recargar producto
+      await fetchProduct();
+      showToast('success', `${newTagIds.length} tag(s) añadido(s) correctamente`);
+    } catch (err) {
+      setTagError('Error de conexión');
+    } finally {
+      setAddingTag(false);
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    if (!confirm('¿Estás seguro de que quieres remover este tag?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/products/${productId}/tags?tagId=${tagId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Error al remover el tag');
+        return;
+      }
+
+      // Recargar producto
+      await fetchProduct();
+      showToast('success', 'Tag removido correctamente');
+    } catch (err) {
+      alert('Error de conexión');
     }
   };
 
@@ -453,6 +545,26 @@ export default function ProductDetailPage() {
           <h2 className="mb-4 text-lg font-semibold text-gray-900">
             Tags ({product.tags.length})
           </h2>
+          
+          {/* Selector de tags */}
+          <div className="mb-4">
+            <TagSelector
+              selectedTagIds={selectedTagIds}
+              onChange={setSelectedTagIds}
+              error={tagError}
+            />
+            {tagError && (
+              <p className="mt-1 text-sm text-red-600">{tagError}</p>
+            )}
+            <button
+              onClick={handleAddTags}
+              disabled={addingTag || selectedTagIds.length === 0}
+              className="mt-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {addingTag ? 'Añadiendo...' : 'Añadir Tags'}
+            </button>
+          </div>
+
           {product.tags.length === 0 ? (
             <p className="text-sm text-gray-500">
               No hay tags asignados.
@@ -469,6 +581,13 @@ export default function ProductDetailPage() {
                   }`}
                 >
                   {tag.name}
+                  <button
+                    onClick={() => handleRemoveTag(tag.id)}
+                    className="ml-2 text-current hover:opacity-70"
+                    title="Remover tag"
+                  >
+                    ×
+                  </button>
                 </span>
               ))}
             </div>

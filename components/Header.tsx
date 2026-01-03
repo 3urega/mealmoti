@@ -35,6 +35,10 @@ export default function Header() {
 
   // Verificar si el usuario es admin o superadmin
   const isAdminUser = user?.role === 'admin' || user?.role === 'superadmin';
+  // Verificar si el usuario puede gestionar catálogo (productos, familias, tags, artículos)
+  const canManageCatalog = user?.role === 'productos' || user?.role === 'admin' || user?.role === 'superadmin';
+  // Verificar si el usuario puede gestionar recetas
+  const canManageRecipes = user?.role === 'recetas' || user?.role === 'admin' || user?.role === 'superadmin';
 
   // Cerrar menú al hacer click fuera
   useEffect(() => {
@@ -122,70 +126,65 @@ export default function Header() {
                   >
                     Dashboard
                   </Link>
-                  <div className="relative" ref={catalogMenuRef}>
-                    <button
-                      onClick={() => setShowCatalogMenu(!showCatalogMenu)}
-                      className="text-sm font-medium text-gray-700 hover:text-gray-900"
-                    >
-                      Catálogo
-                      <svg
-                        className={`ml-1 inline-block h-4 w-4 transition-transform ${
-                          showCatalogMenu ? 'rotate-180' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                  {canManageCatalog && (
+                    <div className="relative" ref={catalogMenuRef}>
+                      <button
+                        onClick={() => setShowCatalogMenu(!showCatalogMenu)}
+                        className="text-sm font-medium text-gray-700 hover:text-gray-900"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                    {showCatalogMenu && (
-                      <div className="absolute right-0 z-50 mt-2 w-48 rounded-md border border-gray-200 bg-white shadow-lg">
-                        <div className="py-1">
-                          <Link
-                            href="/app/ingredients"
-                            onClick={() => setShowCatalogMenu(false)}
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Ingredientes
-                          </Link>
-                          <Link
-                            href="/app/products"
-                            onClick={() => setShowCatalogMenu(false)}
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Productos
-                          </Link>
-                          <Link
-                            href="/app/product-families"
-                            onClick={() => setShowCatalogMenu(false)}
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Familias
-                          </Link>
-                          <Link
-                            href="/app/articles"
-                            onClick={() => setShowCatalogMenu(false)}
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Artículos
-                          </Link>
-                          <Link
-                            href="/app/product-tags"
-                            onClick={() => setShowCatalogMenu(false)}
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Tags
-                          </Link>
+                        Catálogo
+                        <svg
+                          className={`ml-1 inline-block h-4 w-4 transition-transform ${
+                            showCatalogMenu ? 'rotate-180' : ''
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {showCatalogMenu && (
+                        <div className="absolute right-0 z-50 mt-2 w-48 rounded-md border border-gray-200 bg-white shadow-lg">
+                          <div className="py-1">
+                            <Link
+                              href="/app/ingredients"
+                              onClick={() => setShowCatalogMenu(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Ingredientes
+                            </Link>
+                            <Link
+                              href="/app/products"
+                              onClick={() => setShowCatalogMenu(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Productos
+                            </Link>
+                            <Link
+                              href="/app/product-families"
+                              onClick={() => setShowCatalogMenu(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Familias
+                            </Link>
+                            <Link
+                              href="/app/articles"
+                              onClick={() => setShowCatalogMenu(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Artículos
+                            </Link>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                   {isAdminUser && (
                     <div className="relative" ref={managementMenuRef}>
                       <button
@@ -238,12 +237,14 @@ export default function Header() {
                       )}
                     </div>
                   )}
-                  <Link
-                    href="/app/recipes"
-                    className="text-sm font-medium text-gray-700 hover:text-gray-900"
-                  >
-                    Recetas
-                  </Link>
+                  {canManageRecipes && (
+                    <Link
+                      href="/app/recipes"
+                      className="text-sm font-medium text-gray-700 hover:text-gray-900"
+                    >
+                      Recetas
+                    </Link>
+                  )}
                   <Link
                     href="/app/statistics"
                     className="text-sm font-medium text-gray-700 hover:text-gray-900"
@@ -388,40 +389,42 @@ export default function Header() {
                     Dashboard
                   </Link>
                   
-                  {/* Catálogo expandible */}
-                  <div className="space-y-1">
-                    <div className="px-3 py-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                      Catálogo
+                  {/* Catálogo expandible - solo para usuarios con permisos */}
+                  {canManageCatalog && (
+                    <div className="space-y-1">
+                      <div className="px-3 py-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                        Catálogo
+                      </div>
+                      <Link
+                        href="/app/ingredients"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                      >
+                        Ingredientes
+                      </Link>
+                      <Link
+                        href="/app/products"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                      >
+                        Productos
+                      </Link>
+                      <Link
+                        href="/app/product-families"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                      >
+                        Familias
+                      </Link>
+                      <Link
+                        href="/app/articles"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                      >
+                        Artículos
+                      </Link>
                     </div>
-                    <Link
-                      href="/app/ingredients"
-                      onClick={() => setShowMobileMenu(false)}
-                      className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
-                    >
-                      Ingredientes
-                    </Link>
-                    <Link
-                      href="/app/products"
-                      onClick={() => setShowMobileMenu(false)}
-                      className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
-                    >
-                      Productos
-                    </Link>
-                    <Link
-                      href="/app/product-families"
-                      onClick={() => setShowMobileMenu(false)}
-                      className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
-                    >
-                      Familias
-                    </Link>
-                    <Link
-                      href="/app/articles"
-                      onClick={() => setShowMobileMenu(false)}
-                      className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
-                    >
-                      Artículos
-                    </Link>
-                  </div>
+                  )}
 
                   {/* Gestión - solo para admin y superadmin */}
                   {isAdminUser && (
@@ -452,13 +455,15 @@ export default function Header() {
                   </Link>
                     </div>
                   )}
-                  <Link
-                    href="/app/recipes"
-                    onClick={() => setShowMobileMenu(false)}
-                    className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    Recetas
-                  </Link>
+                  {canManageRecipes && (
+                    <Link
+                      href="/app/recipes"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                    >
+                      Recetas
+                    </Link>
+                  )}
                   <Link
                     href="/app/statistics"
                     onClick={() => setShowMobileMenu(false)}

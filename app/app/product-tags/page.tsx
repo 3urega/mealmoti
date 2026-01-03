@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface Tag {
@@ -14,6 +15,7 @@ interface Tag {
 }
 
 export default function ProductTagsPage() {
+  const router = useRouter();
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,6 +23,26 @@ export default function ProductTagsPage() {
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [search, setSearch] = useState('');
   const [filterGeneral, setFilterGeneral] = useState<string>('all');
+
+  // Verificar permisos al cargar la página
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (res.ok && data.user) {
+          const userRole = data.user.role;
+          if (userRole !== 'productos' && userRole !== 'admin' && userRole !== 'superadmin') {
+            router.push('/app/dashboard');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking permissions:', err);
+      }
+    };
+    checkPermissions();
+  }, [router]);
 
   useEffect(() => {
     fetchTags();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
-import { canCreatePublicItems } from '@/lib/auth';
+import { canCreatePublicItems, canManageCatalog } from '@/lib/auth';
 import { z } from 'zod';
 
 const createTagSchema = z.object({
@@ -99,6 +99,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verificar permisos para gestionar catálogo
+    if (!canManageCatalog(user.role)) {
+      return NextResponse.json(
+        {
+          error: 'No tienes permisos para realizar esta acción',
+          details: 'Solo usuarios con rol de gestión pueden crear/modificar/eliminar elementos del catálogo',
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const validatedData = createTagSchema.parse(body);
 
@@ -119,13 +130,14 @@ export async function POST(request: NextRequest) {
       : false;
 
     // Verificar que no existe un tag con el mismo nombre y alcance
-    const existingTag = await prisma.productTag.findUnique({
+    // Para tags generales, createdById debe ser null
+    // Para tags particulares, createdById debe ser el ID del usuario
+    // Usamos findFirst porque createdById puede ser null en la restricción única
+    const existingTag = await prisma.productTag.findFirst({
       where: {
-        name_isGeneral_createdById: {
-          name: validatedData.name.trim(),
-          isGeneral: finalIsGeneral,
-          createdById: finalIsGeneral ? null : user.id,
-        },
+        name: validatedData.name.trim(),
+        isGeneral: finalIsGeneral,
+        createdById: finalIsGeneral ? null : user.id,
       },
     });
 

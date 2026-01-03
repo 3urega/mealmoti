@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
-import { canCreatePublicItems } from '@/lib/auth';
+import { canCreatePublicItems, canManageCatalog } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateTagSchema = z.object({
@@ -82,6 +82,17 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verificar permisos para gestionar catálogo
+    if (!canManageCatalog(user.role)) {
+      return NextResponse.json(
+        {
+          error: 'No tienes permisos para realizar esta acción',
+          details: 'Solo usuarios con rol de gestión pueden crear/modificar/eliminar elementos del catálogo',
+        },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     const validatedData = updateTagSchema.parse(body);
@@ -145,13 +156,12 @@ export async function PUT(
           : tag.isGeneral;
       const finalCreatedById = finalIsGeneral ? null : tag.createdById;
 
-      const existingTag = await prisma.productTag.findUnique({
+      // Usamos findFirst porque createdById puede ser null en la restricción única
+      const existingTag = await prisma.productTag.findFirst({
         where: {
-          name_isGeneral_createdById: {
-            name: validatedData.name.trim(),
-            isGeneral: finalIsGeneral,
-            createdById: finalCreatedById,
-          },
+          name: validatedData.name.trim(),
+          isGeneral: finalIsGeneral,
+          createdById: finalCreatedById,
         },
       });
 
@@ -213,6 +223,17 @@ export async function DELETE(
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verificar permisos para gestionar catálogo
+    if (!canManageCatalog(user.role)) {
+      return NextResponse.json(
+        {
+          error: 'No tienes permisos para realizar esta acción',
+          details: 'Solo usuarios con rol de gestión pueden crear/modificar/eliminar elementos del catálogo',
+        },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

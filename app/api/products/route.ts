@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
-import { canCreatePublicItems } from '@/lib/auth';
+import { canCreatePublicItems, canManageCatalog } from '@/lib/auth';
 import { z } from 'zod';
 
 const createProductSchema = z.object({
@@ -139,6 +139,17 @@ export async function POST(request: NextRequest) {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verificar permisos para gestionar catálogo
+    if (!canManageCatalog(user.role)) {
+      return NextResponse.json(
+        {
+          error: 'No tienes permisos para realizar esta acción',
+          details: 'Solo usuarios con rol de gestión pueden crear/modificar/eliminar elementos del catálogo',
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

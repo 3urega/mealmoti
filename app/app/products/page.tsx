@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProductModal from '@/components/ProductModal';
 import BulkProductModal from '@/components/BulkProductModal';
@@ -32,6 +33,7 @@ interface ProductListResponse {
 }
 
 export default function ProductsPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,6 +49,27 @@ export default function ProductsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState('');
+
+  // Verificar permisos al cargar la página
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (res.ok && data.user) {
+          const userRole = data.user.role;
+          // Solo usuarios con rol productos, admin o superadmin pueden acceder
+          if (userRole !== 'productos' && userRole !== 'admin' && userRole !== 'superadmin') {
+            router.push('/app/dashboard');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking permissions:', err);
+      }
+    };
+    checkPermissions();
+  }, [router]);
 
   useEffect(() => {
     fetchProducts();

@@ -117,6 +117,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verificar permisos para gestionar recetas
+    if (!canManageRecipes(user.role)) {
+      return NextResponse.json(
+        {
+          error: 'No tienes permisos para realizar esta acción',
+          details: 'Solo usuarios con rol de gestión de recetas pueden crear/modificar/eliminar recetas',
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const {
       name,

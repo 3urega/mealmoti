@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProductFamilyModal from '@/components/ProductFamilyModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
@@ -24,6 +25,7 @@ interface ProductFamilyListResponse {
 }
 
 export default function ProductFamiliesPage() {
+  const router = useRouter();
   const [families, setFamilies] = useState<ProductFamily[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -38,6 +40,26 @@ export default function ProductFamiliesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingFamily, setDeletingFamily] = useState<ProductFamily | null>(null);
   const [deleteError, setDeleteError] = useState('');
+
+  // Verificar permisos al cargar la página
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (res.ok && data.user) {
+          const userRole = data.user.role;
+          if (userRole !== 'productos' && userRole !== 'admin' && userRole !== 'superadmin') {
+            router.push('/app/dashboard');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking permissions:', err);
+      }
+    };
+    checkPermissions();
+  }, [router]);
 
   useEffect(() => {
     fetchFamilies();

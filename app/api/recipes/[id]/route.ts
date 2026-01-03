@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
-import { canCreatePublicItems } from '@/lib/auth';
+import { canCreatePublicItems, canManageRecipes } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateRecipeSchema = z.object({
@@ -122,6 +122,17 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verificar permisos para gestionar recetas
+    if (!canManageRecipes(user.role)) {
+      return NextResponse.json(
+        {
+          error: 'No tienes permisos para realizar esta acción',
+          details: 'Solo usuarios con rol de gestión de recetas pueden crear/modificar/eliminar recetas',
+        },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const { hasAccess, isOwner } = await hasAccessToRecipe(user.id, id);
 
@@ -223,6 +234,17 @@ export async function DELETE(
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verificar permisos para gestionar recetas
+    if (!canManageRecipes(user.role)) {
+      return NextResponse.json(
+        {
+          error: 'No tienes permisos para realizar esta acción',
+          details: 'Solo usuarios con rol de gestión de recetas pueden crear/modificar/eliminar recetas',
+        },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import IngredientModal from '@/components/IngredientModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
@@ -28,6 +29,7 @@ interface IngredientListResponse {
 }
 
 export default function IngredientsPage() {
+  const router = useRouter();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,6 +43,26 @@ export default function IngredientsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingIngredient, setDeletingIngredient] = useState<Ingredient | null>(null);
   const [deleteError, setDeleteError] = useState('');
+
+  // Verificar permisos al cargar la página
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (res.ok && data.user) {
+          const userRole = data.user.role;
+          if (userRole !== 'productos' && userRole !== 'admin' && userRole !== 'superadmin') {
+            router.push('/app/dashboard');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking permissions:', err);
+      }
+    };
+    checkPermissions();
+  }, [router]);
 
   useEffect(() => {
     fetchIngredients();
