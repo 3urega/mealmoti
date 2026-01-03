@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Aplicar filtro de status si se proporciona
-    if (status && ['draft', 'active', 'completed', 'archived', 'periodica'].includes(status)) {
+    if (status && ['draft', 'active', 'completed', 'archived', 'periodica', 'disused'].includes(status)) {
       if (whereConditions.OR) {
         // Si ya hay OR, agregar status a cada condición
         whereConditions = {

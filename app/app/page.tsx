@@ -95,6 +95,7 @@ export default function DashboardPage() {
         shared: [],
         private: [],
         fromRecipes: [],
+        disused: [],
         all: [],
         other: [],
       };
@@ -103,49 +104,56 @@ export default function DashboardPage() {
     // El API ya filtró las listas, así que todas son del usuario o compartidas con él
     const userLists = lists;
 
-    // Borradores: listas con status 'draft' que son del usuario
+    // Borradores: listas con status 'draft' que son del usuario (excluyendo desuso)
     const drafts = userLists.filter(
       (list) => list.status === 'draft' && (!user || list.ownerId === user.id)
     );
 
-    // Activas: listas con status 'active' que son del usuario
+    // Activas: listas con status 'active' que son del usuario (excluyendo desuso)
     const active = userLists.filter(
       (list) => list.status === 'active' && (!user || list.ownerId === user.id)
     );
 
-    // Compartidas: listas que tienen shares (pueden ser propias o compartidas con el usuario)
+    // Compartidas: listas que tienen shares (pueden ser propias o compartidas con el usuario, excluyendo desuso)
     const shared = userLists.filter(
-      (list) => list.shares && list.shares.length > 0
+      (list) => list.shares && list.shares.length > 0 && list.status !== 'disused'
     );
 
-    // Privadas: listas del usuario sin compartir y que no son draft ni active
+    // Privadas: listas del usuario sin compartir y que no son draft ni active (excluyendo desuso)
     const privateLists = userLists.filter(
       (list) =>
         (!user || list.ownerId === user.id) &&
         (!list.shares || list.shares.length === 0) &&
         list.status !== 'draft' &&
-        list.status !== 'active'
+        list.status !== 'active' &&
+        list.status !== 'disused'
     );
 
-    // Desde Recetas: listas creadas desde recetas
+    // Desde Recetas: listas creadas desde recetas (excluyendo desuso)
     const fromRecipes = userLists.filter(
-      (list) => list.recipeId !== null && list.recipeId !== undefined
+      (list) => list.recipeId !== null && list.recipeId !== undefined && list.status !== 'disused'
     );
 
-    // Encontrar listas que no están en ninguna categoría específica
+    // En desuso: listas marcadas como en desuso
+    const disused = userLists.filter(
+      (list) => list.status === 'disused'
+    );
+
+    // Encontrar listas que no están en ninguna categoría específica (excluyendo desuso)
     const categorizedListIds = new Set([
       ...drafts.map(l => l.id),
       ...active.map(l => l.id),
       ...shared.map(l => l.id),
       ...privateLists.map(l => l.id),
       ...fromRecipes.map(l => l.id),
+      ...disused.map(l => l.id),
     ]);
     
     const other = userLists.filter(
-      list => !categorizedListIds.has(list.id)
+      list => !categorizedListIds.has(list.id) && list.status !== 'disused'
     );
 
-    return { drafts, active, shared, private: privateLists, fromRecipes, all: userLists, other };
+    return { drafts, active, shared, private: privateLists, fromRecipes, disused, all: userLists, other };
   }, [lists, user, mounted]);
 
   // Calcular estadísticas de una lista
@@ -181,6 +189,7 @@ export default function DashboardPage() {
           `Compartidas(${listsByCategory.shared.length}) ` +
           `Privadas(${listsByCategory.private.length}) ` +
           `Desde Recetas(${listsByCategory.fromRecipes.length}) ` +
+          `En Desuso(${listsByCategory.disused.length}) ` +
           `Otras(${listsByCategory.other.length})`
         );
       } else {
@@ -458,6 +467,32 @@ export default function DashboardPage() {
         )}
       </div>
 
+
+      {/* Sección de En Desuso */}
+      {listsByCategory.disused.length > 0 && (
+        <div className="mb-8 rounded-xl bg-slate-100 p-6">
+          <h2 className="mb-4 text-2xl font-bold text-slate-700">En Desuso</h2>
+          <p className="mb-4 text-sm text-slate-600">
+            Listas que ya no se utilizan ({listsByCategory.disused.length})
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {listsByCategory.disused.map((list) => {
+              const { itemCount, completedCount, isOwner } = getListStats(list);
+              return (
+                <ShoppingListCard
+                  key={list.id}
+                  id={list.id}
+                  name={list.name}
+                  description={list.description}
+                  itemCount={itemCount}
+                  completedCount={completedCount}
+                  isOwner={isOwner}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Sección de Otras Listas - para listas con otros status (completed, archived, periodica, etc) */}
       {listsByCategory.other.length > 0 && (

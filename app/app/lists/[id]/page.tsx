@@ -625,6 +625,7 @@ export default function ListDetailPage() {
                 <option value="completed">Completada</option>
                 <option value="archived">Archivada</option>
                 <option value="periodica">Periódica</option>
+                <option value="disused">En desuso</option>
               </select>
               <button
                 onClick={() => setShowShareModal(true)}
