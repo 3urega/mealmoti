@@ -95,6 +95,78 @@ export async function GET(
             },
           },
         },
+        subfamilies: {
+          include: {
+            subfamily: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                familyId: true,
+                family: {
+                  select: {
+                    id: true,
+                    name: true,
+                    isGeneral: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            subfamily: {
+              name: 'asc',
+            },
+          },
+        },
+        varieties: {
+          include: {
+            variety: {
+              select: {
+                id: true,
+                name: true,
+                subfamilyId: true,
+                subfamily: {
+                  select: {
+                    id: true,
+                    name: true,
+                    familyId: true,
+                    family: {
+                      select: {
+                        id: true,
+                        name: true,
+                        isGeneral: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            variety: {
+              name: 'asc',
+            },
+          },
+        },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                isGeneral: true,
+                createdById: true,
+              },
+            },
+          },
+          orderBy: {
+            tag: {
+              name: 'asc',
+            },
+          },
+        },
         _count: {
           select: {
             articles: true,
@@ -130,6 +202,26 @@ export async function GET(
         description: ppf.family.description,
         isGeneral: ppf.family.isGeneral,
         createdById: ppf.family.createdById,
+      })),
+      subfamilies: productWithDetails.subfamilies.map((pps: typeof productWithDetails.subfamilies[0]) => ({
+        id: pps.subfamily.id,
+        name: pps.subfamily.name,
+        description: pps.subfamily.description,
+        familyId: pps.subfamily.familyId,
+        family: pps.subfamily.family,
+      })),
+      varieties: productWithDetails.varieties.map((ppv: typeof productWithDetails.varieties[0]) => ({
+        id: ppv.variety.id,
+        name: ppv.variety.name,
+        subfamilyId: ppv.variety.subfamilyId,
+        subfamily: ppv.variety.subfamily,
+      })),
+      tags: productWithDetails.tags.map((ppt: typeof productWithDetails.tags[0]) => ({
+        id: ppt.tag.id,
+        name: ppt.tag.name,
+        description: ppt.tag.description,
+        isGeneral: ppt.tag.isGeneral,
+        createdById: ppt.tag.createdById,
       })),
       articlesCount: productWithDetails._count.articles,
       createdAt: productWithDetails.createdAt,

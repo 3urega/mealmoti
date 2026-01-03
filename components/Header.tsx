@@ -175,6 +175,13 @@ export default function Header() {
                           >
                             Artículos
                           </Link>
+                          <Link
+                            href="/app/product-tags"
+                            onClick={() => setShowCatalogMenu(false)}
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            Tags
+                          </Link>
                         </div>
                       </div>
                     )}
@@ -218,6 +225,13 @@ export default function Header() {
                               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                             >
                               Comercios
+                            </Link>
+                            <Link
+                              href="/app/product-tags"
+                              onClick={() => setShowManagementMenu(false)}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                              Tags de Productos
                             </Link>
                           </div>
                         </div>
@@ -422,13 +436,20 @@ export default function Header() {
                       >
                         Usuarios
                       </Link>
-                      <Link
-                        href="/app/stores"
-                        onClick={() => setShowMobileMenu(false)}
+                  <Link
+                    href="/app/stores"
+                    onClick={() => setShowMobileMenu(false)}
                         className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
-                      >
-                        Comercios
-                      </Link>
+                  >
+                    Comercios
+                  </Link>
+                  <Link
+                    href="/app/product-tags"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="block rounded-md px-6 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Tags de Productos
+                  </Link>
                     </div>
                   )}
                   <Link

@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SearchableProductSelect from '@/components/SearchableProductSelect';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
-import SubfamilyList from '@/components/SubfamilyList';
 import { useNotification } from '@/contexts/NotificationContext';
 
 interface Product {
@@ -15,25 +14,33 @@ interface Product {
   isGeneral: boolean;
 }
 
-interface ProductFamily {
+interface ProductVariety {
   id: string;
   name: string;
-  description?: string | null;
-  isGeneral: boolean;
-  createdById?: string | null;
+  subfamilyId: string;
+  subfamily: {
+    id: string;
+    name: string;
+    familyId: string;
+    family: {
+      id: string;
+      name: string;
+      isGeneral: boolean;
+    };
+  };
   productsCount: number;
-  products: Product[];
   createdAt: string;
   updatedAt: string;
 }
 
-export default function ProductFamilyDetailPage() {
+export default function ProductVarietyDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const familyId = params.id as string;
+  const varietyId = params.id as string;
   const { showToast } = useNotification();
 
-  const [family, setFamily] = useState<ProductFamily | null>(null);
+  const [variety, setVariety] = useState<ProductVariety | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -44,25 +51,38 @@ export default function ProductFamilyDetailPage() {
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    fetchFamily();
-  }, [familyId]);
+    fetchVariety();
+    fetchProducts();
+  }, [varietyId]);
 
-  const fetchFamily = async () => {
+  const fetchVariety = async () => {
     try {
       setLoading(true);
       setError('');
-      const res = await fetch(`/api/product-families/${familyId}`);
+      const res = await fetch(`/api/product-varieties/${varietyId}`);
       const data = await res.json();
       if (res.ok) {
-        setFamily(data.family);
+        setVariety(data.variety);
       } else {
-        setError(data.error || 'Error al cargar la familia');
+        setError(data.error || 'Error al cargar la variedad');
       }
     } catch (err) {
       setError('Error de conexión');
-      console.error('Error fetching family:', err);
+      console.error('Error fetching variety:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch(`/api/product-varieties/${varietyId}/products`);
+      const data = await res.json();
+      if (res.ok) {
+        setProducts(data.products || []);
+      }
+    } catch (err) {
+      console.error('Error fetching products:', err);
     }
   };
 
@@ -76,13 +96,13 @@ export default function ProductFamilyDetailPage() {
     setAddError('');
 
     try {
-      const res = await fetch(`/api/product-families/${familyId}/products`, {
+      const res = await fetch(`/api/products/${selectedProductId}/varieties`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          productId: selectedProductId,
+          varietyId: varietyId,
         }),
       });
 
@@ -94,8 +114,9 @@ export default function ProductFamilyDetailPage() {
       }
 
       setSelectedProductId('');
-      fetchFamily();
-      showToast('success', 'Producto añadido a la familia correctamente');
+      fetchProducts();
+      fetchVariety();
+      showToast('success', 'Producto añadido a la variedad correctamente');
     } catch (err) {
       setAddError('Error de conexión');
       console.error('Error adding product:', err);
@@ -116,7 +137,7 @@ export default function ProductFamilyDetailPage() {
     setDeleteError('');
     try {
       const res = await fetch(
-        `/api/product-families/${familyId}/products/${removingProductId}`,
+        `/api/products/${removingProductId}/varieties?varietyId=${varietyId}`,
         {
           method: 'DELETE',
         }
@@ -131,8 +152,9 @@ export default function ProductFamilyDetailPage() {
 
       setShowDeleteModal(false);
       setRemovingProductId(null);
-      fetchFamily();
-      showToast('success', 'Producto removido de la familia correctamente');
+      fetchProducts();
+      fetchVariety();
+      showToast('success', 'Producto removido de la variedad correctamente');
     } catch (err) {
       setDeleteError('Error de conexión');
       console.error('Error removing product:', err);
@@ -142,20 +164,20 @@ export default function ProductFamilyDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-600">Cargando familia...</div>
+        <div className="text-gray-600">Cargando variedad...</div>
       </div>
     );
   }
 
-  if (error || !family) {
+  if (error || !variety) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-        <p className="text-red-800">{error || 'Familia no encontrada'}</p>
+        <p className="text-red-800">{error || 'Variedad no encontrada'}</p>
         <Link
-          href="/app/product-families"
+          href={`/app/product-subfamilies/${variety?.subfamilyId || ''}`}
           className="mt-4 inline-block text-blue-600 hover:text-blue-800"
         >
-          ← Volver a familias
+          ← Volver a subfamilia
         </Link>
       </div>
     );
@@ -165,37 +187,47 @@ export default function ProductFamilyDetailPage() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <Link
-          href="/app/product-families"
-          className="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-gray-900"
-        >
-          ← Volver a familias
-        </Link>
+        <div className="mb-4 flex items-center space-x-2 text-sm text-gray-600">
+          <Link
+            href="/app/product-families"
+            className="hover:text-gray-900"
+          >
+            Familias
+          </Link>
+          <span>/</span>
+          <Link
+            href={`/app/product-families/${variety.subfamily.family.id}`}
+            className="hover:text-gray-900"
+          >
+            {variety.subfamily.family.name}
+          </Link>
+          <span>/</span>
+          <Link
+            href={`/app/product-subfamilies/${variety.subfamilyId}`}
+            className="hover:text-gray-900"
+          >
+            {variety.subfamily.name}
+          </Link>
+          <span>/</span>
+          <span className="text-gray-900">{variety.name}</span>
+        </div>
         <div className="mt-4">
-          <h1 className="text-3xl font-bold text-gray-900">{family.name}</h1>
-          {family.description && (
-            <p className="mt-2 text-gray-600">{family.description}</p>
-          )}
+          <h1 className="text-3xl font-bold text-gray-900">{variety.name}</h1>
           <div className="mt-2 flex items-center gap-4">
             <span
               className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                family.isGeneral
+                variety.subfamily.family.isGeneral
                   ? 'bg-green-100 text-green-800'
                   : 'bg-blue-100 text-blue-800'
               }`}
             >
-              {family.isGeneral ? 'General' : 'Particular'}
+              {variety.subfamily.family.isGeneral ? 'General' : 'Particular'}
             </span>
             <span className="text-sm text-gray-600">
-              {family.productsCount} producto{family.productsCount !== 1 ? 's' : ''}
+              {variety.productsCount} producto{variety.productsCount !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Subfamilias */}
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
-        <SubfamilyList familyId={familyId} onRefresh={fetchFamily} />
       </div>
 
       {/* Añadir Producto */}
@@ -240,10 +272,10 @@ export default function ProductFamilyDetailPage() {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Productos</h2>
         </div>
-        {family.products.length === 0 ? (
+        {products.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-600">
-              No hay productos en esta familia todavía.
+              No hay productos en esta variedad todavía.
             </p>
             <p className="mt-2 text-sm text-gray-500">
               Usa el formulario de arriba para añadir productos.
@@ -269,7 +301,7 @@ export default function ProductFamilyDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {family.products.map((product) => (
+                {products.map((product) => (
                   <tr key={product.id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
                       <Link
@@ -321,9 +353,9 @@ export default function ProductFamilyDetailPage() {
         }}
         onConfirm={handleRemoveConfirm}
         title="Remover Producto"
-        message="¿Estás seguro de que quieres remover este producto de la familia?"
+        message="¿Estás seguro de que quieres remover este producto de la variedad?"
         itemName={
-          family.products.find((p) => p.id === removingProductId)?.name || ''
+          products.find((p) => p.id === removingProductId)?.name || ''
         }
         error={deleteError}
       />

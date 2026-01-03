@@ -39,6 +39,7 @@ model User {
   createdStores           Store[]                  @relation("StoreCreator")
   createdRecipes          Recipe[]                 @relation("RecipeCreator")
   createdProductFamilies  ProductFamily[]          @relation("ProductFamilyCreator")
+  createdProductTags      ProductTag[]             @relation("ProductTagCreator")
   publicInclusionRequests PublicInclusionRequest[] @relation("PublicInclusionRequests")
   publicInclusionReviews  PublicInclusionRequest[] @relation("PublicInclusionReviews")
 
@@ -61,6 +62,9 @@ model Product {
   asIngredient      Ingredient?
   recipeIngredients RecipeIngredient[]
   families          ProductProductFamily[]
+  subfamilies       ProductProductSubfamily[]
+  varieties         ProductProductVariety[]
+  tags              ProductProductTag[]
 
   @@index([name])
   @@index([isGeneral, createdById])
@@ -376,7 +380,8 @@ model ProductFamily {
   updatedAt   DateTime @updatedAt
 
   // Relaciones
-  products ProductProductFamily[]
+  products    ProductProductFamily[]
+  subfamilies ProductSubfamily[]
 
   @@unique([name, isGeneral, createdById]) // Nombre único por usuario/general
   @@index([name])
@@ -444,4 +449,97 @@ model PublicInclusionRequest {
   @@index([requestedById])
   @@index([reviewedById])
   @@index([itemType, itemId])
+}
+
+model ProductSubfamily {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  familyId    String
+  family      ProductFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  // Hereda isGeneral de la familia padre (no se almacena, se calcula)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relaciones
+  products  ProductProductSubfamily[]
+  varieties ProductVariety[]
+
+  @@unique([name, familyId]) // Nombre único por familia
+  @@index([familyId])
+  @@index([name])
+}
+
+model ProductVariety {
+  id          String           @id @default(cuid())
+  name        String
+  subfamilyId String
+  subfamily   ProductSubfamily @relation(fields: [subfamilyId], references: [id], onDelete: Cascade)
+  // Hereda isGeneral de la subfamilia padre (no se almacena, se calcula)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relaciones
+  products ProductProductVariety[]
+
+  @@unique([name, subfamilyId]) // Nombre único por subfamilia
+  @@index([subfamilyId])
+  @@index([name])
+}
+
+model ProductTag {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isGeneral   Boolean  @default(false) // false = particular, true = general
+  createdById String?
+  createdBy   User?    @relation("ProductTagCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  products ProductProductTag[]
+
+  @@unique([name, isGeneral, createdById]) // Nombre único por usuario/general
+  @@index([name])
+  @@index([isGeneral, createdById])
+}
+
+model ProductProductSubfamily {
+  id          String           @id @default(cuid())
+  productId   String
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subfamilyId String
+  subfamily   ProductSubfamily @relation(fields: [subfamilyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+
+  @@unique([productId, subfamilyId])
+  @@index([productId])
+  @@index([subfamilyId])
+}
+
+model ProductProductVariety {
+  id        String         @id @default(cuid())
+  productId String
+  product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  varietyId String
+  variety   ProductVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@unique([productId, varietyId])
+  @@index([productId])
+  @@index([varietyId])
+}
+
+model ProductProductTag {
+  id        String     @id @default(cuid())
+  productId String
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       ProductTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([productId, tagId])
+  @@index([productId])
+  @@index([tagId])
 }

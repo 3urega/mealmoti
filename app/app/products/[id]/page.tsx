@@ -22,6 +22,42 @@ interface Ingredient {
   isOptional: boolean;
 }
 
+interface Subfamily {
+  id: string;
+  name: string;
+  description?: string | null;
+  familyId: string;
+  family: {
+    id: string;
+    name: string;
+    isGeneral: boolean;
+  };
+}
+
+interface Variety {
+  id: string;
+  name: string;
+  subfamilyId: string;
+  subfamily: {
+    id: string;
+    name: string;
+    familyId: string;
+    family: {
+      id: string;
+      name: string;
+      isGeneral: boolean;
+    };
+  };
+}
+
+interface Tag {
+  id: string;
+  name: string;
+  description?: string | null;
+  isGeneral: boolean;
+  createdById?: string | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -30,6 +66,9 @@ interface Product {
   createdById?: string | null;
   articles: Article[];
   ingredients: Ingredient[];
+  subfamilies: Subfamily[];
+  varieties: Variety[];
+  tags: Tag[];
   articlesCount: number;
   createdAt: string;
   updatedAt: string;
@@ -342,6 +381,97 @@ export default function ProductDetailPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Organización: Subfamilias, Variedades y Tags */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Subfamilias */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            Subfamilias ({product.subfamilies.length})
+          </h2>
+          {product.subfamilies.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No hay subfamilias asignadas.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {product.subfamilies.map((subfamily) => (
+                <li
+                  key={subfamily.id}
+                  className="rounded-md border border-gray-100 bg-gray-50 p-3"
+                >
+                  <Link
+                    href={`/app/product-subfamilies/${subfamily.id}`}
+                    className="block"
+                  >
+                    <div className="font-medium text-gray-900">
+                      {subfamily.name}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Familia: {subfamily.family.name}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Variedades */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            Variedades ({product.varieties.length})
+          </h2>
+          {product.varieties.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No hay variedades asignadas.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {product.varieties.map((variety) => (
+                <li
+                  key={variety.id}
+                  className="rounded-md border border-gray-100 bg-gray-50 p-3"
+                >
+                  <div className="font-medium text-gray-900">
+                    {variety.name}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    {variety.subfamily.family.name} &gt; {variety.subfamily.name}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Tags */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            Tags ({product.tags.length})
+          </h2>
+          {product.tags.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No hay tags asignados.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {product.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-sm ${
+                    tag.isGeneral
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
           )}
         </div>
       </div>

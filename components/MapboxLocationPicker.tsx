@@ -258,8 +258,8 @@ export default function MapboxLocationPicker({
       <div className="mb-2">
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium text-gray-700">
-            Ubicación
-          </label>
+          Ubicación
+        </label>
           {geoSupported && !disabled && (
             <button
               type="button"
