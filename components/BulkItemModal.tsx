@@ -58,6 +58,7 @@ export default function BulkItemModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
 
   const fetchUnits = async () => {
     try {
@@ -108,6 +109,7 @@ export default function BulkItemModal({
       setExampleArticles([]);
       setError('');
       setFieldErrors({});
+      setItemErrors({});
       setSaving(false);
     }
   }, [isOpen]);
@@ -242,6 +244,7 @@ export default function BulkItemModal({
 
     setSaving(true);
     setError('');
+    setItemErrors({});
 
     try {
       const results = await Promise.allSettled(
@@ -256,26 +259,64 @@ export default function BulkItemModal({
               storeId: item.storeId || undefined,
               notes: item.notes || undefined,
             }),
+          }).then(async (res) => {
+            const data = await res.json();
+            return { ok: res.ok, status: res.status, data, itemId: item.id };
           })
         )
       );
 
-      const failed = results.filter((r) => r.status === 'rejected');
-      const successful = results.filter((r) => r.status === 'fulfilled');
+      // Procesar resultados individualmente
+      const successfulItemIds: string[] = [];
+      const newItemErrors: Record<string, string> = {};
+      let successCount = 0;
+      let failCount = 0;
 
-      // Verificar si algunos fueron rechazados por el servidor
-      const serverFailed = results.filter(
-        (r) =>
-          r.status === 'fulfilled' &&
-          !(r as PromiseFulfilledResult<Response>).value.ok
-      );
+      results.forEach((result, index) => {
+        const item = pendingItems[index];
+        
+        if (result.status === 'rejected') {
+          // Error de conexión o red
+          newItemErrors[item.id] = 'Error de conexión';
+          failCount++;
+        } else {
+          const { ok, data, itemId } = result.value;
+          if (ok) {
+            // Éxito: agregar a la lista de exitosos para eliminarlos
+            successfulItemIds.push(itemId);
+            successCount++;
+          } else {
+            // Error del servidor: guardar el mensaje de error
+            const errorMessage = data?.error || 'Error desconocido';
+            newItemErrors[item.id] = errorMessage;
+            failCount++;
+          }
+        }
+      });
 
-      if (failed.length > 0 || serverFailed.length > 0) {
-        const totalFailed = failed.length + serverFailed.length;
-        setError(
-          `Se agregaron ${successful.length - serverFailed.length} de ${pendingItems.length} items. ${totalFailed} fallaron.`
+      // Actualizar estado con errores específicos
+      setItemErrors(newItemErrors);
+
+      // Eliminar items exitosos de la lista pendiente
+      if (successfulItemIds.length > 0) {
+        setPendingItems((prev) =>
+          prev.filter((item) => !successfulItemIds.includes(item.id))
         );
+      }
+
+      // Mostrar resumen
+      if (failCount > 0) {
+        if (successCount > 0) {
+          setError(
+            `Se agregaron ${successCount} item${successCount !== 1 ? 's' : ''} correctamente. ${failCount} fallaron. Revisa los mensajes de error abajo.`
+          );
+        } else {
+          setError(
+            `No se pudo agregar ningún item. ${failCount} fallaron. Revisa los mensajes de error abajo.`
+          );
+        }
       } else {
+        // Todo exitoso
         onSuccess();
         onClose();
       }
@@ -573,7 +614,11 @@ export default function BulkItemModal({
                 {pendingItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-start justify-between rounded-lg border border-gray-200 bg-white p-3 hover:bg-gray-50"
+                    className={`flex items-start justify-between rounded-lg border p-3 ${
+                      itemErrors[item.id]
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
                   >
                     <div className="flex-1">
                       <div className="font-medium text-gray-900">
@@ -594,6 +639,11 @@ export default function BulkItemModal({
                           <span className="font-medium">Notas:</span> {item.notes}
                         </div>
                       )}
+                      {itemErrors[item.id] && (
+                        <div className="mt-2 rounded-md bg-red-100 px-2 py-1 text-xs text-red-800">
+                          <span className="font-medium">Error:</span> {itemErrors[item.id]}
+                        </div>
+                      )}
                     </div>
                     <div className="ml-4 flex gap-2">
                       <button
@@ -606,7 +656,15 @@ export default function BulkItemModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleRemoveFromList(item.id)}
+                        onClick={() => {
+                          handleRemoveFromList(item.id);
+                          // Limpiar error al eliminar
+                          setItemErrors((prev) => {
+                            const newErrors = { ...prev };
+                            delete newErrors[item.id];
+                            return newErrors;
+                          });
+                        }}
                         className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
                         disabled={saving}
                       >

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -16,7 +16,6 @@ export const metadata: Metadata = {
   title: "Mealmoti - Listas de Compra Compartidas",
   description: "Crea y comparte listas de la compra con tu familia y amigos",
   manifest: "/manifest.json",
-  themeColor: "#2563eb",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -26,12 +25,14 @@ export const metadata: Metadata = {
     icon: "/icons/icon-192x192.png",
     apple: "/icons/icon-192x192.png",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({

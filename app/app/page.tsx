@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import CategoryCard from '@/components/CategoryCard';
+import ShoppingListCard from '@/components/ShoppingListCard';
 
 interface ShoppingList {
   id: string;
@@ -39,13 +38,16 @@ export default function DashboardPage() {
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListDescription, setNewListDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   useEffect(() => {
+    setMounted(true);
     fetchUser();
     fetchLists();
   }, []);
@@ -66,46 +68,126 @@ export default function DashboardPage() {
     try {
       const res = await fetch('/api/lists');
       const data = await res.json();
+      console.log('Response from /api/lists:', { status: res.status, ok: res.ok, data });
       if (res.ok) {
-        setLists(data.lists || []);
+        const listsData = data.lists || [];
+        console.log('Setting lists:', listsData.length, 'lists');
+        setLists(listsData);
+      } else {
+        console.error('Error response from /api/lists:', data);
+        setError(data.error || 'Error al cargar las listas');
       }
     } catch (err) {
       console.error('Error fetching lists:', err);
+      setError('Error de conexión al cargar las listas');
     } finally {
       setLoading(false);
     }
   };
 
-  // Calcular contadores de categorías
-  const getCategoryCounts = () => {
-    if (!user) return { drafts: 0, active: 0, shared: 0, private: 0, fromRecipes: 0 };
+  // Filtrar listas por categoría usando useMemo para evitar recálculos innecesarios
+  // El API ya filtra las listas por usuario, así que todas las listas recibidas son válidas
+  const listsByCategory = useMemo(() => {
+    if (!mounted) {
+      return {
+        drafts: [],
+        active: [],
+        shared: [],
+        private: [],
+        fromRecipes: [],
+        all: [],
+        other: [],
+      };
+    }
 
-    const drafts = lists.filter(
-      (list) => list.status === 'draft' && list.ownerId === user.id
-    ).length;
+    // El API ya filtró las listas, así que todas son del usuario o compartidas con él
+    const userLists = lists;
 
-    const active = lists.filter(
-      (list) => list.status === 'active' && list.ownerId === user.id
-    ).length;
+    // Borradores: listas con status 'draft' que son del usuario
+    const drafts = userLists.filter(
+      (list) => list.status === 'draft' && (!user || list.ownerId === user.id)
+    );
 
-    const shared = lists.filter(
+    // Activas: listas con status 'active' que son del usuario
+    const active = userLists.filter(
+      (list) => list.status === 'active' && (!user || list.ownerId === user.id)
+    );
+
+    // Compartidas: listas que tienen shares (pueden ser propias o compartidas con el usuario)
+    const shared = userLists.filter(
       (list) => list.shares && list.shares.length > 0
-    ).length;
+    );
 
-    const privateLists = lists.filter(
+    // Privadas: listas del usuario sin compartir y que no son draft ni active
+    const privateLists = userLists.filter(
       (list) =>
-        list.ownerId === user.id &&
-        (!list.shares || list.shares.length === 0)
-    ).length;
+        (!user || list.ownerId === user.id) &&
+        (!list.shares || list.shares.length === 0) &&
+        list.status !== 'draft' &&
+        list.status !== 'active'
+    );
 
-    const fromRecipes = lists.filter(
+    // Desde Recetas: listas creadas desde recetas
+    const fromRecipes = userLists.filter(
       (list) => list.recipeId !== null && list.recipeId !== undefined
-    ).length;
+    );
 
-    return { drafts, active, shared, private: privateLists, fromRecipes };
+    // Encontrar listas que no están en ninguna categoría específica
+    const categorizedListIds = new Set([
+      ...drafts.map(l => l.id),
+      ...active.map(l => l.id),
+      ...shared.map(l => l.id),
+      ...privateLists.map(l => l.id),
+      ...fromRecipes.map(l => l.id),
+    ]);
+    
+    const other = userLists.filter(
+      list => !categorizedListIds.has(list.id)
+    );
+
+    return { drafts, active, shared, private: privateLists, fromRecipes, all: userLists, other };
+  }, [lists, user, mounted]);
+
+  // Calcular estadísticas de una lista
+  const getListStats = (list: ShoppingList) => {
+    const itemCount = list.items?.length || 0;
+    const completedCount = list.items?.filter((item) => item.checked).length || 0;
+    const isOwner = list.ownerId === user?.id;
+    return { itemCount, completedCount, isOwner };
   };
 
-  const categoryCounts = getCategoryCounts();
+  // Debug: actualizar info de debug solo en cliente
+  useEffect(() => {
+    console.log('Debug useEffect triggered:', { mounted, listsLength: lists.length, user: user?.name || 'null' });
+    
+    if (mounted) {
+      console.log('Mounted state:', mounted);
+      console.log('Lists state:', lists);
+      console.log('User state:', user);
+      console.log('ListsByCategory:', listsByCategory);
+      
+      if (lists.length > 0) {
+        // Actualizar debug info para mostrar en UI
+        const statusCounts = lists.reduce((acc, list) => {
+          acc[list.status] = (acc[list.status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        setDebugInfo(
+          `Total: ${lists.length} | Usuario: ${user ? user.name : 'No cargado'} | ` +
+          `Status: ${JSON.stringify(statusCounts)} | ` +
+          `Categorías: Borradores(${listsByCategory.drafts.length}) ` +
+          `Activas(${listsByCategory.active.length}) ` +
+          `Compartidas(${listsByCategory.shared.length}) ` +
+          `Privadas(${listsByCategory.private.length}) ` +
+          `Desde Recetas(${listsByCategory.fromRecipes.length}) ` +
+          `Otras(${listsByCategory.other.length})`
+        );
+      } else {
+        setDebugInfo(`No hay listas cargadas. Mounted: ${mounted}, User: ${user ? user.name : 'null'}`);
+      }
+    }
+  }, [mounted, lists, user, listsByCategory]);
 
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +226,27 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-600">Cargando...</div>
+        <div className="text-gray-600">Cargando listas...</div>
+      </div>
+    );
+  }
+
+  // Mostrar error si hay uno
+  if (error && !lists.length) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+        <h2 className="mb-2 text-lg font-semibold text-red-900">Error al cargar las listas</h2>
+        <p className="text-red-700">{error}</p>
+        <button
+          onClick={() => {
+            setError('');
+            setLoading(true);
+            fetchLists();
+          }}
+          className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
@@ -216,120 +318,207 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="mb-8">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <CategoryCard
-            title="Borradores"
-            description="Listas en preparación"
-            count={categoryCounts.drafts}
-            color="from-amber-500 to-amber-600"
-            href="/app/lists/category/draft"
-            icon={
-              <svg
-                className="h-6 w-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      {/* Sección de Borradores */}
+      <div className="mb-8 rounded-xl bg-amber-50 p-6">
+        <h2 className="mb-4 text-2xl font-bold text-amber-900">Borradores</h2>
+        <p className="mb-4 text-sm text-amber-700">
+          Listas en preparación ({listsByCategory.drafts.length})
+        </p>
+        {listsByCategory.drafts.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {listsByCategory.drafts.map((list) => {
+              const { itemCount, completedCount, isOwner } = getListStats(list);
+              return (
+                <ShoppingListCard
+                  key={list.id}
+                  id={list.id}
+                  name={list.name}
+                  description={list.description}
+                  itemCount={itemCount}
+                  completedCount={completedCount}
+                  isOwner={isOwner}
                 />
-              </svg>
-            }
-          />
-          <CategoryCard
-            title="Activas"
-            description="Listas en uso"
-            count={categoryCounts.active}
-            color="from-blue-500 to-blue-600"
-            href="/app/lists/category/active"
-            icon={
-              <svg
-                className="h-6 w-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            }
-          />
-          <CategoryCard
-            title="Compartidas"
-            description="Listas compartidas con otros"
-            count={categoryCounts.shared}
-            color="from-purple-500 to-purple-600"
-            href="/app/lists/category/shared"
-            icon={
-              <svg
-                className="h-6 w-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            }
-          />
-          <CategoryCard
-            title="Privadas"
-            description="Solo para ti"
-            count={categoryCounts.private}
-            color="from-green-500 to-green-600"
-            href="/app/lists/category/private"
-            icon={
-              <svg
-                className="h-6 w-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                />
-              </svg>
-            }
-          />
-          <CategoryCard
-            title="Desde Recetas"
-            description="Listas creadas desde recetas"
-            count={categoryCounts.fromRecipes}
-            color="from-orange-500 to-orange-600"
-            href="/app/lists/category/from-recipes"
-            icon={
-              <svg
-                className="h-6 w-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                />
-              </svg>
-            }
-          />
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-amber-600 italic">No hay listas en borradores</p>
+        )}
       </div>
+
+      {/* Sección de Activas */}
+      <div className="mb-8 rounded-xl bg-blue-50 p-6">
+        <h2 className="mb-4 text-2xl font-bold text-blue-900">Activas</h2>
+        <p className="mb-4 text-sm text-blue-700">
+          Listas en uso ({listsByCategory.active.length})
+        </p>
+        {listsByCategory.active.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {listsByCategory.active.map((list) => {
+              const { itemCount, completedCount, isOwner } = getListStats(list);
+              return (
+                <ShoppingListCard
+                  key={list.id}
+                  id={list.id}
+                  name={list.name}
+                  description={list.description}
+                  itemCount={itemCount}
+                  completedCount={completedCount}
+                  isOwner={isOwner}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-blue-600 italic">No hay listas activas</p>
+        )}
+      </div>
+
+      {/* Sección de Compartidas */}
+      <div className="mb-8 rounded-xl bg-purple-50 p-6">
+        <h2 className="mb-4 text-2xl font-bold text-purple-900">Compartidas</h2>
+        <p className="mb-4 text-sm text-purple-700">
+          Listas compartidas con otros ({listsByCategory.shared.length})
+        </p>
+        {listsByCategory.shared.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {listsByCategory.shared.map((list) => {
+              const { itemCount, completedCount, isOwner } = getListStats(list);
+              return (
+                <ShoppingListCard
+                  key={list.id}
+                  id={list.id}
+                  name={list.name}
+                  description={list.description}
+                  itemCount={itemCount}
+                  completedCount={completedCount}
+                  isOwner={isOwner}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-purple-600 italic">No hay listas compartidas</p>
+        )}
+      </div>
+
+      {/* Sección de Privadas */}
+      <div className="mb-8 rounded-xl bg-green-50 p-6">
+        <h2 className="mb-4 text-2xl font-bold text-green-900">Privadas</h2>
+        <p className="mb-4 text-sm text-green-700">
+          Solo para ti ({listsByCategory.private.length})
+        </p>
+        {listsByCategory.private.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {listsByCategory.private.map((list) => {
+              const { itemCount, completedCount, isOwner } = getListStats(list);
+              return (
+                <ShoppingListCard
+                  key={list.id}
+                  id={list.id}
+                  name={list.name}
+                  description={list.description}
+                  itemCount={itemCount}
+                  completedCount={completedCount}
+                  isOwner={isOwner}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-green-600 italic">No hay listas privadas</p>
+        )}
+      </div>
+
+      {/* Sección de Desde Recetas */}
+      <div className="mb-8 rounded-xl bg-orange-50 p-6">
+        <h2 className="mb-4 text-2xl font-bold text-orange-900">Desde Recetas</h2>
+        <p className="mb-4 text-sm text-orange-700">
+          Listas creadas desde recetas ({listsByCategory.fromRecipes.length})
+        </p>
+        {listsByCategory.fromRecipes.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {listsByCategory.fromRecipes.map((list) => {
+              const { itemCount, completedCount, isOwner } = getListStats(list);
+              return (
+                <ShoppingListCard
+                  key={list.id}
+                  id={list.id}
+                  name={list.name}
+                  description={list.description}
+                  itemCount={itemCount}
+                  completedCount={completedCount}
+                  isOwner={isOwner}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-orange-600 italic">No hay listas desde recetas</p>
+        )}
+      </div>
+
+
+      {/* Sección de Otras Listas - para listas con otros status (completed, archived, periodica, etc) */}
+      {listsByCategory.other.length > 0 && (
+        <div className="mb-8 rounded-xl bg-gray-50 p-6">
+          <h2 className="mb-4 text-2xl font-bold text-gray-900">Otras Listas</h2>
+          <p className="mb-4 text-sm text-gray-700">
+            Listas con otros estados ({listsByCategory.other.length})
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {listsByCategory.other.map((list) => {
+              const { itemCount, completedCount, isOwner } = getListStats(list);
+              return (
+                <ShoppingListCard
+                  key={list.id}
+                  id={list.id}
+                  name={list.name}
+                  description={list.description}
+                  itemCount={itemCount}
+                  completedCount={completedCount}
+                  isOwner={isOwner}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje cuando no hay listas */}
+      {mounted && lists.length === 0 && !loading && (
+        <div className="mb-8 rounded-lg border border-gray-200 bg-white p-12 text-center">
+          <p className="text-lg text-gray-600 mb-4">
+            No tienes listas de compra aún. ¡Crea tu primera lista para comenzar!
+          </p>
+          <p className="text-sm text-gray-500">
+            Usuario: {user ? user.name : 'No cargado'} | Listas recibidas: {lists.length}
+          </p>
+        </div>
+      )}
+
+      {/* Debug: mostrar información de las listas - solo en cliente */}
+      {mounted && (
+        <details className="mb-8 rounded-lg border border-gray-300 bg-gray-100 p-4 text-xs">
+          <summary className="cursor-pointer font-bold">Debug Info (click para ver)</summary>
+          <div className="mt-2 whitespace-pre-wrap">
+            {debugInfo || 'Debug info no disponible aún'}
+            <br />
+            <br />
+            <strong>Estado actual:</strong>
+            <br />
+            - Mounted: {mounted ? 'Sí' : 'No'}
+            <br />
+            - Loading: {loading ? 'Sí' : 'No'}
+            <br />
+            - Listas: {lists.length}
+            <br />
+            - Usuario: {user ? `${user.name} (${user.id})` : 'No cargado'}
+            <br />
+            - ListsByCategory.all: {listsByCategory.all.length}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
