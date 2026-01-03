@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
+import { canCreatePublicItems } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateRecipeSchema = z.object({
@@ -137,6 +138,17 @@ export async function PUT(
 
     const body = await request.json();
     const updateData = updateRecipeSchema.parse(body);
+
+    // Verificar si el usuario intenta hacer la receta pública
+    if (updateData.isGeneral === true && !canCreatePublicItems(user.role)) {
+      return NextResponse.json(
+        { 
+          error: 'No tienes permiso para hacer esta receta pública. Solo puedes crear y editar recetas privadas.',
+          details: 'Los usuarios normales solo pueden gestionar recetas para uso privado.'
+        },
+        { status: 403 }
+      );
+    }
 
     const recipe = await prisma.recipe.update({
       where: { id },

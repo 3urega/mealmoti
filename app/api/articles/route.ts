@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
+import { canCreatePublicItems } from '@/lib/auth';
 import { z } from 'zod';
 
 const createArticleSchema = z.object({
@@ -163,6 +164,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verificar si el usuario puede crear artículos públicos
+    if (validatedData.isGeneral && !canCreatePublicItems(user.role)) {
+      return NextResponse.json(
+        { 
+          error: 'No tienes permiso para crear artículos públicos. Solo puedes crear artículos privados.',
+          details: 'Los usuarios normales solo pueden crear artículos para uso privado.'
+        },
+        { status: 403 }
+      );
+    }
+
     // Verificar ingredientes si se proporcionan
     if (validatedData.ingredientIds && validatedData.ingredientIds.length > 0) {
       const ingredients = await prisma.ingredient.findMany({
@@ -181,6 +193,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Forzar isGeneral a false si el usuario no tiene permisos
+    const finalIsGeneral = canCreatePublicItems(user.role) ? validatedData.isGeneral : false;
+
     // Crear artículo
     const articleData: any = {
       name: validatedData.name.trim(),
@@ -189,8 +204,8 @@ export async function POST(request: NextRequest) {
       brand: validatedData.brand.trim() || 'genérico',
       variant: validatedData.variant?.trim() || null,
       suggestedPrice: validatedData.suggestedPrice || null,
-      isGeneral: validatedData.isGeneral,
-      createdById: validatedData.isGeneral ? null : user.id,
+      isGeneral: finalIsGeneral,
+      createdById: finalIsGeneral ? null : user.id,
     };
     
     if (validatedData.weightInGrams !== undefined) {

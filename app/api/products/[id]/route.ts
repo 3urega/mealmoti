@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
+import { canCreatePublicItems } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateProductSchema = z.object({
@@ -178,6 +179,17 @@ export async function PUT(
 
     const body = await request.json();
     const validatedData = updateProductSchema.parse(body);
+
+    // Verificar si el usuario intenta hacer el producto público
+    if (validatedData.isGeneral === true && !canCreatePublicItems(user.role)) {
+      return NextResponse.json(
+        { 
+          error: 'No tienes permiso para hacer este producto público. Solo puedes crear y editar productos privados.',
+          details: 'Los usuarios normales solo pueden gestionar productos para uso privado.'
+        },
+        { status: 403 }
+      );
+    }
 
     // Si se intenta cambiar isGeneral de true a false, validar que no tenga artículos generales
     if (

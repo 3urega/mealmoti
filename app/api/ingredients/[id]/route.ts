@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
+import { canManageProducts } from '@/lib/auth';
 import { z } from 'zod';
 
 const updateIngredientSchemaBase = z.object({
@@ -76,6 +77,17 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     const validatedData = updateIngredientSchema.parse(body);
+
+    // Verificar que el usuario puede editar ingredientes (solo usuarios con rol superior a "user")
+    if (!canManageProducts(user.role)) {
+      return NextResponse.json(
+        { 
+          error: 'No tienes permiso para editar ingredientes. Solo usuarios con roles de gestión pueden editar ingredientes.',
+          details: 'Los usuarios normales no pueden editar ingredientes.'
+        },
+        { status: 403 }
+      );
+    }
 
     // Verificar que el ingrediente existe
     const existingIngredient = await prisma.ingredient.findUnique({

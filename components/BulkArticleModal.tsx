@@ -38,6 +38,23 @@ export default function BulkArticleModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Obtener rol del usuario
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (res.ok && data.user) {
+          setUserRole(data.user.role);
+        }
+      } catch (err) {
+        console.error('Error fetching user:', err);
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -397,23 +414,25 @@ export default function BulkArticleModal({
                 )}
               </div>
 
-              <div className="flex items-center">
-                <input
-                  id="bulk-article-isGeneral"
-                  type="checkbox"
-                  checked={currentArticle.isGeneral}
-                  onChange={(e) =>
-                    setCurrentArticle({ ...currentArticle, isGeneral: e.target.checked })
-                  }
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label
-                  htmlFor="bulk-article-isGeneral"
-                  className="ml-2 block text-sm text-gray-700"
-                >
-                  Artículo general (visible para todos los usuarios)
-                </label>
-              </div>
+              {userRole !== 'user' && (
+                <div className="flex items-center">
+                  <input
+                    id="bulk-article-isGeneral"
+                    type="checkbox"
+                    checked={currentArticle.isGeneral}
+                    onChange={(e) =>
+                      setCurrentArticle({ ...currentArticle, isGeneral: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label
+                    htmlFor="bulk-article-isGeneral"
+                    className="ml-2 block text-sm text-gray-700"
+                  >
+                    Artículo general (visible para todos los usuarios)
+                  </label>
+                </div>
+              )}
 
               <button
                 type="button"

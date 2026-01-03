@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
+import { canCreatePublicItems } from '@/lib/auth';
 import { z } from 'zod';
 
 const createProductSchema = z.object({
@@ -143,13 +144,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createProductSchema.parse(body);
 
+    // Verificar si el usuario puede crear productos públicos
+    if (validatedData.isGeneral && !canCreatePublicItems(user.role)) {
+      return NextResponse.json(
+        { 
+          error: 'No tienes permiso para crear productos públicos. Solo puedes crear productos privados.',
+          details: 'Los usuarios normales solo pueden crear productos para uso privado.'
+        },
+        { status: 403 }
+      );
+    }
+
+    // Forzar isGeneral a false si el usuario no tiene permisos
+    const finalIsGeneral = canCreatePublicItems(user.role) ? validatedData.isGeneral : false;
+
     // Crear producto
     const product = await prisma.product.create({
       data: {
         name: validatedData.name.trim(),
         description: validatedData.description?.trim() || null,
-        isGeneral: validatedData.isGeneral,
-        createdById: validatedData.isGeneral ? null : user.id,
+        isGeneral: finalIsGeneral,
+        createdById: finalIsGeneral ? null : user.id,
       },
       include: {
         _count: {

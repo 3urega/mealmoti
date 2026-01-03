@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
+import { canManageProducts } from '@/lib/auth';
 import { z } from 'zod';
 
 const createIngredientSchemaBase = z.object({
@@ -113,6 +114,17 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = createIngredientSchema.parse(body);
+
+    // Verificar que el usuario puede crear ingredientes (solo usuarios con rol superior a "user")
+    if (!canManageProducts(user.role)) {
+      return NextResponse.json(
+        { 
+          error: 'No tienes permiso para crear ingredientes. Solo usuarios con roles de gestión pueden crear ingredientes.',
+          details: 'Los usuarios normales no pueden crear ingredientes.'
+        },
+        { status: 403 }
+      );
+    }
 
     // Si se proporciona productId, validar que existe
     if (validatedData.productId) {

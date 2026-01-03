@@ -73,4 +73,13 @@ export function canManageProducts(userRole: UserRole | string): boolean {
   return hasRole(userRole, 'productos');
 }
 
+/**
+ * Verifica si un usuario puede crear o editar items públicos (isGeneral: true)
+ * Solo usuarios con roles superiores a "user" pueden crear items públicos
+ */
+export function canCreatePublicItems(userRole: UserRole | string): boolean {
+  // Solo usuarios con rol superior a "user" pueden crear items públicos
+  return hasRole(userRole, 'productos');
+}
+
 

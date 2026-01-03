@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/get-session';
 import { prisma } from '@/lib/prisma';
+import { canCreatePublicItems, canManageRecipes } from '@/lib/auth';
 import { z } from 'zod';
 
 const createRecipeSchema = z.object({
@@ -150,6 +151,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Verificar si el usuario puede crear recetas públicas
+    const finalIsGeneral = (isGeneral ?? false) && canCreatePublicItems(user.role);
+    
+    if (isGeneral && !canCreatePublicItems(user.role)) {
+      return NextResponse.json(
+        { 
+          error: 'No tienes permiso para crear recetas públicas. Solo puedes crear recetas privadas.',
+          details: 'Los usuarios normales solo pueden crear recetas para uso privado.'
+        },
+        { status: 403 }
+      );
+    }
+
     // Convertir unit (string) a unitId si es necesario
     const processedIngredients = [];
     for (const ingredient of ingredients) {
@@ -198,7 +212,7 @@ export async function POST(request: NextRequest) {
         servings,
         prepTime,
         cookTime,
-        isGeneral: isGeneral ?? false,
+        isGeneral: finalIsGeneral,
         createdById: user.id,
         ingredients: {
           create: processedIngredients.map((ing: any, index: number) => ({
