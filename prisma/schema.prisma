@@ -15,6 +15,12 @@ enum UserRole {
   user
 }
 
+enum RequestStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -25,14 +31,16 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relaciones
-  shoppingLists          ShoppingList[]      @relation("ListOwner")
-  sharedLists            ShoppingListShare[]
-  listItems              Item[]
-  createdProducts        Product[]           @relation("ProductCreator")
-  createdArticles        Article[]           @relation("ArticleCreator")
-  createdStores          Store[]             @relation("StoreCreator")
-  createdRecipes         Recipe[]            @relation("RecipeCreator")
-  createdProductFamilies ProductFamily[]     @relation("ProductFamilyCreator")
+  shoppingLists           ShoppingList[]           @relation("ListOwner")
+  sharedLists             ShoppingListShare[]
+  listItems               Item[]
+  createdProducts         Product[]                @relation("ProductCreator")
+  createdArticles         Article[]                @relation("ArticleCreator")
+  createdStores           Store[]                  @relation("StoreCreator")
+  createdRecipes          Recipe[]                 @relation("RecipeCreator")
+  createdProductFamilies  ProductFamily[]          @relation("ProductFamilyCreator")
+  publicInclusionRequests PublicInclusionRequest[] @relation("PublicInclusionRequests")
+  publicInclusionReviews  PublicInclusionRequest[] @relation("PublicInclusionReviews")
 
   @@index([email])
 }
@@ -415,4 +423,25 @@ model RecipeArticleSelectionItem {
   @@unique([selectionId, recipeIngredientId])
   @@index([selectionId])
   @@index([recipeIngredientId])
+}
+
+model PublicInclusionRequest {
+  id            String        @id @default(cuid())
+  itemType      String // "product" | "article" | "ingredient"
+  itemId        String // ID del producto, artículo o ingrediente
+  requestedById String
+  requestedBy   User          @relation("PublicInclusionRequests", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedById  String?
+  reviewedBy    User?         @relation("PublicInclusionReviews", fields: [reviewedById], references: [id], onDelete: SetNull)
+  status        RequestStatus @default(pending)
+  notes         String? // Notas del gestor al aprobar/rechazar
+  createdAt     DateTime      @default(now())
+  reviewedAt    DateTime?
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([itemType, itemId]) // Solo una solicitud activa por item
+  @@index([status])
+  @@index([requestedById])
+  @@index([reviewedById])
+  @@index([itemType, itemId])
 }

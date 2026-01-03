@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ArticleStoreModal from '@/components/ArticleStoreModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import RequestPublicInclusionButton from '@/components/RequestPublicInclusionButton';
 
 interface Product {
   id: string;
@@ -188,14 +189,24 @@ export default function ArticleDetailPage() {
               {article.variant && ` - ${article.variant}`}
             </p>
           </div>
-          {canEdit && (
-            <button
-              onClick={() => router.push(`/app/articles/${articleId}/edit`)}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Editar
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {currentUser && article.createdById === currentUser.id && (
+              <RequestPublicInclusionButton
+                itemType="article"
+                itemId={article.id}
+                isGeneral={article.isGeneral}
+                isOwner={true}
+              />
+            )}
+            {canEdit && (
+              <button
+                onClick={() => router.push(`/app/articles/${articleId}/edit`)}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Editar
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

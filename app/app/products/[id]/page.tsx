@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SearchableArticleSelect from '@/components/SearchableArticleSelect';
+import RequestPublicInclusionButton from '@/components/RequestPublicInclusionButton';
 
 interface Article {
   id: string;
@@ -49,10 +50,24 @@ export default function ProductDetailPage() {
   const [newArticleName, setNewArticleName] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [user, setUser] = useState<{ id: string } | null>(null);
 
   useEffect(() => {
     fetchProduct();
+    fetchUser();
   }, [productId]);
+
+  const fetchUser = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (res.ok && data.user) {
+        setUser(data.user);
+      }
+    } catch (err) {
+      console.error('Error fetching user:', err);
+    }
+  };
 
   const fetchProduct = async () => {
     try {
@@ -192,6 +207,16 @@ export default function ProductDetailPage() {
             <span>{product.articlesCount} artículos</span>
             <span>{product.ingredients.length} ingredientes</span>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {user && product.createdById === user.id && (
+            <RequestPublicInclusionButton
+              itemType="product"
+              itemId={product.id}
+              isGeneral={product.isGeneral}
+              isOwner={true}
+            />
+          )}
         </div>
       </div>
 

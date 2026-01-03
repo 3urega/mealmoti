@@ -41,6 +41,10 @@ export default function ProductModal({
   const [searching, setSearching] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [requestStatus, setRequestStatus] = useState<{
+    status: string;
+    notes?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     // Obtener rol del usuario
@@ -57,6 +61,33 @@ export default function ProductModal({
     };
     fetchUser();
   }, []);
+
+  useEffect(() => {
+    // Obtener estado de solicitud si hay un producto
+    if (product && product.id) {
+      const fetchRequestStatus = async () => {
+        try {
+          const res = await fetch(
+            `/api/public-inclusion/status?itemType=product&itemId=${product.id}`
+          );
+          const data = await res.json();
+          if (res.ok && data.request) {
+            setRequestStatus({
+              status: data.request.status,
+              notes: data.request.notes,
+            });
+          } else {
+            setRequestStatus(null);
+          }
+        } catch (err) {
+          console.error('Error fetching request status:', err);
+        }
+      };
+      fetchRequestStatus();
+    } else {
+      setRequestStatus(null);
+    }
+  }, [product]);
 
   useEffect(() => {
     if (isOpen) {
@@ -333,6 +364,14 @@ export default function ProductModal({
               <p className="text-sm text-blue-800">
                 Los productos generales son visibles para todos los usuarios del
                 sistema.
+              </p>
+            </div>
+          )}
+
+          {requestStatus && requestStatus.status === 'pending' && (
+            <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+              <p className="text-sm text-yellow-800">
+                ⚠ Tienes una solicitud de incorporación pública pendiente para este producto.
               </p>
             </div>
           )}

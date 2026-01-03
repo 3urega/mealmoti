@@ -180,6 +180,25 @@ export async function PUT(
     const body = await request.json();
     const validatedData = updateProductSchema.parse(body);
 
+    // Verificar si hay una solicitud pendiente para este producto
+    const pendingRequest = await prisma.publicInclusionRequest.findUnique({
+      where: {
+        itemType_itemId: {
+          itemType: 'product',
+          itemId: id,
+        },
+      },
+    });
+
+    if (pendingRequest && pendingRequest.status === 'pending') {
+      return NextResponse.json(
+        {
+          error: 'No se puede modificar este producto porque tiene una solicitud de incorporación pública pendiente',
+        },
+        { status: 400 }
+      );
+    }
+
     // Verificar si el usuario intenta hacer el producto público
     if (validatedData.isGeneral === true && !canCreatePublicItems(user.role)) {
       return NextResponse.json(

@@ -35,6 +35,11 @@ export default function ArticleModal({
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [articleId, setArticleId] = useState<string | null>(null);
+  const [requestStatus, setRequestStatus] = useState<{
+    status: string;
+    notes?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     // Obtener rol del usuario

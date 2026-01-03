@@ -183,6 +183,25 @@ export async function PUT(
     const body = await request.json();
     const validatedData = updateArticleSchema.parse(body);
 
+    // Verificar si hay una solicitud pendiente para este artículo
+    const pendingRequest = await prisma.publicInclusionRequest.findUnique({
+      where: {
+        itemType_itemId: {
+          itemType: 'article',
+          itemId: id,
+        },
+      },
+    });
+
+    if (pendingRequest && pendingRequest.status === 'pending') {
+      return NextResponse.json(
+        {
+          error: 'No se puede modificar este artículo porque tiene una solicitud de incorporación pública pendiente',
+        },
+        { status: 400 }
+      );
+    }
+
     // Verificar si el usuario intenta hacer el artículo público
     if (validatedData.isGeneral === true && !canCreatePublicItems(user.role)) {
       return NextResponse.json(

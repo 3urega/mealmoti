@@ -82,4 +82,12 @@ export function canCreatePublicItems(userRole: UserRole | string): boolean {
   return hasRole(userRole, 'productos');
 }
 
+/**
+ * Verifica si un usuario puede revisar solicitudes de incorporación pública
+ * Solo usuarios con roles de productos o superiores pueden revisar
+ */
+export function canReviewInclusionRequests(userRole: UserRole | string): boolean {
+  return hasRole(userRole, 'productos');
+}
+
 
