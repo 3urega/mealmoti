@@ -47,6 +47,8 @@ export default function ProductSubfamilyDetailPage() {
   const [removingProductId, setRemovingProductId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingProduct, setCreatingProduct] = useState(false);
 
   useEffect(() => {
     fetchSubfamily();
@@ -159,6 +161,39 @@ export default function ProductSubfamilyDetailPage() {
     }
   };
 
+  const handleCreateProductSuccess = async (productId: string) => {
+    setCreatingProduct(true);
+    try {
+      // Asignar el producto recién creado a la subfamilia
+      const res = await fetch(`/api/products/${productId}/subfamilies`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subfamilyId: subfamilyId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast('error', data.error || 'Error al asignar el producto a la subfamilia');
+        return;
+      }
+
+      setShowCreateModal(false);
+      fetchProducts();
+      fetchSubfamily();
+      showToast('success', 'Producto creado y asignado a la subfamilia correctamente');
+    } catch (err) {
+      showToast('error', 'Error de conexión al asignar producto');
+      console.error('Error assigning product:', err);
+    } finally {
+      setCreatingProduct(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -234,16 +269,24 @@ export default function ProductSubfamilyDetailPage() {
 
       {/* Añadir Producto */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
-          Añadir Producto
-        </h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Añadir Producto
+          </h2>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            + Crear Nuevo Producto
+          </button>
+        </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <div className="md:col-span-3">
             <label
               htmlFor="product-select"
               className="block text-sm font-medium text-gray-700"
             >
-              Buscar producto
+              Buscar producto existente
             </label>
             <div className="mt-1">
               <SearchableProductSelect
@@ -361,6 +404,202 @@ export default function ProductSubfamilyDetailPage() {
         }
         error={deleteError}
       />
+
+      {/* Modal de Crear Producto */}
+      {subfamily && (
+        <CreateProductModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleCreateProductSuccess}
+          subfamilyId={subfamilyId}
+          familyIsGeneral={subfamily.family.isGeneral}
+        />
+      )}
+    </div>
+  );
+}
+
+// Componente modal para crear producto y asignarlo automáticamente
+function CreateProductModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  subfamilyId,
+  familyIsGeneral,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: (productId: string) => void;
+  subfamilyId: string;
+  familyIsGeneral: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (isOpen) {
+      setName('');
+      setDescription('');
+      setError('');
+      setFieldErrors({});
+      setSaving(false);
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!name.trim()) {
+      setFieldErrors({ name: 'El nombre es requerido' });
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      // Crear producto (heredará isGeneral de la familia)
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          description: description.trim() || undefined,
+          isGeneral: familyIsGeneral,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.details) {
+          const zodErrors: Record<string, string> = {};
+          data.details.forEach((err: any) => {
+            if (err.path) {
+              zodErrors[err.path[0]] = err.message;
+            }
+          });
+          setFieldErrors(zodErrors);
+        } else {
+          setError(data.error || 'Error al crear producto');
+        }
+        setSaving(false);
+        return;
+      }
+
+      // Llamar a onSuccess con el ID del producto creado
+      onSuccess(data.product.id);
+      setSaving(false);
+    } catch (err) {
+      setError('Error de conexión');
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Crear Nuevo Producto
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+            disabled={saving}
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Nombre *
+            </label>
+            <input
+              id="name"
+              type="text"
+              required
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (fieldErrors.name) {
+                  setFieldErrors((prev) => {
+                    const newErrors = { ...prev };
+                    delete newErrors.name;
+                    return newErrors;
+                  });
+                }
+              }}
+              className={`mt-1 block w-full rounded-md border px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-blue-500 ${
+                fieldErrors.name
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-300 focus:border-blue-500'
+              }`}
+              placeholder="Ej: Tortillas, Pan, Leche"
+            />
+            {fieldErrors.name && (
+              <p className="mt-1 text-sm text-red-600">{fieldErrors.name}</p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Descripción
+            </label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              placeholder="Descripción opcional del producto..."
+            />
+          </div>
+
+          <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+            <p className="text-sm text-blue-800">
+              El producto se asignará automáticamente a esta subfamilia (y su familia) al crearlo.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+            >
+              {saving ? 'Creando...' : 'Crear y Asignar'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

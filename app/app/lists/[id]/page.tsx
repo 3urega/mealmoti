@@ -657,6 +657,25 @@ export default function ListDetailPage() {
                   Reiniciar Compra
                 </button>
               )}
+              <Link
+                href={`/app/lists/${listId}/add-items`}
+                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 flex items-center gap-2"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Agregar Items
+              </Link>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"

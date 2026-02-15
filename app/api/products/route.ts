@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const familyId = searchParams.get('familyId');
     const includeFamilies = searchParams.get('includeFamilies') === 'true';
+    const includeSubfamilies = searchParams.get('includeSubfamilies') === 'true';
+    const includeVarieties = searchParams.get('includeVarieties') === 'true';
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -60,36 +62,94 @@ export async function GET(request: NextRequest) {
     // Obtener total para paginación
     const total = await prisma.product.count({ where });
 
-    // Obtener productos con conteo de artículos y familias si se solicita
-    const products = await prisma.product.findMany({
-      where,
-      include: includeFamilies
-        ? {
-            families: {
-              include: {
-                family: {
-                  select: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    isGeneral: true,
+    // Construir objeto include dinámicamente
+    const includeObj: any = {
+      _count: {
+        select: {
+          articles: true,
+        },
+      },
+    };
+
+    if (includeFamilies) {
+      includeObj.families = {
+        include: {
+          family: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              isGeneral: true,
+            },
+          },
+        },
+      };
+    }
+
+    if (includeSubfamilies) {
+      includeObj.subfamilies = {
+        include: {
+          subfamily: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              familyId: true,
+              family: {
+                select: {
+                  id: true,
+                  name: true,
+                  isGeneral: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          subfamily: {
+            name: 'asc',
+          },
+        },
+      };
+    }
+
+    if (includeVarieties) {
+      includeObj.varieties = {
+        include: {
+          variety: {
+            select: {
+              id: true,
+              name: true,
+              subfamilyId: true,
+              subfamily: {
+                select: {
+                  id: true,
+                  name: true,
+                  familyId: true,
+                  family: {
+                    select: {
+                      id: true,
+                      name: true,
+                      isGeneral: true,
+                    },
                   },
                 },
               },
             },
-            _count: {
-              select: {
-                articles: true,
-              },
-            },
-          }
-        : {
-            _count: {
-              select: {
-                articles: true,
-              },
-            },
           },
+        },
+        orderBy: {
+          variety: {
+            name: 'asc',
+          },
+        },
+      };
+    }
+
+    // Obtener productos con conteo de artículos y relaciones si se solicitan
+    const products = await prisma.product.findMany({
+      where,
+      include: includeObj,
       orderBy: {
         name: 'asc',
       },
@@ -97,24 +157,61 @@ export async function GET(request: NextRequest) {
       skip: offset,
     });
 
-    // Formatear respuesta con articlesCount y familias si se incluyen
-    const formattedProducts = products.map((product: any) => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      isGeneral: product.isGeneral,
-      createdById: product.createdById,
-      articlesCount: product._count.articles,
-      families: includeFamilies
-        ? product.families?.map((ppf: any) => ({
-            id: ppf.family.id,
-            name: ppf.family.name,
-            description: ppf.family.description,
-            isGeneral: ppf.family.isGeneral,
-          })) || []
-        : undefined,
-      createdAt: product.createdAt,
-    }));
+    // Formatear respuesta con articlesCount y relaciones si se incluyen
+    const formattedProducts = products.map((product: any) => {
+      const formatted: any = {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        isGeneral: product.isGeneral,
+        createdById: product.createdById,
+        articlesCount: product._count.articles,
+        createdAt: product.createdAt,
+      };
+
+      if (includeFamilies && product.families) {
+        formatted.families = product.families.map((ppf: any) => ({
+          id: ppf.family.id,
+          name: ppf.family.name,
+          description: ppf.family.description,
+          isGeneral: ppf.family.isGeneral,
+        }));
+      }
+
+      if (includeSubfamilies && product.subfamilies) {
+        formatted.subfamilies = product.subfamilies.map((pps: any) => ({
+          id: pps.subfamily.id,
+          name: pps.subfamily.name,
+          description: pps.subfamily.description,
+          familyId: pps.subfamily.familyId,
+          family: {
+            id: pps.subfamily.family.id,
+            name: pps.subfamily.family.name,
+            isGeneral: pps.subfamily.family.isGeneral,
+          },
+        }));
+      }
+
+      if (includeVarieties && product.varieties) {
+        formatted.varieties = product.varieties.map((ppv: any) => ({
+          id: ppv.variety.id,
+          name: ppv.variety.name,
+          subfamilyId: ppv.variety.subfamilyId,
+          subfamily: {
+            id: ppv.variety.subfamily.id,
+            name: ppv.variety.subfamily.name,
+            familyId: ppv.variety.subfamily.familyId,
+            family: {
+              id: ppv.variety.subfamily.family.id,
+              name: ppv.variety.subfamily.family.name,
+              isGeneral: ppv.variety.subfamily.family.isGeneral,
+            },
+          },
+        }));
+      }
+
+      return formatted;
+    });
 
     return NextResponse.json(
       {

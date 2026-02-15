@@ -6,12 +6,42 @@ import Link from 'next/link';
 import ProductModal from '@/components/ProductModal';
 import BulkProductModal from '@/components/BulkProductModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import ViewToggle from '@/components/ViewToggle';
+import ProductGrid from '@/components/ProductGrid';
 
 interface ProductFamily {
   id: string;
   name: string;
   description?: string | null;
   isGeneral: boolean;
+}
+
+interface ProductSubfamily {
+  id: string;
+  name: string;
+  description?: string | null;
+  familyId: string;
+  family: {
+    id: string;
+    name: string;
+    isGeneral: boolean;
+  };
+}
+
+interface ProductVariety {
+  id: string;
+  name: string;
+  subfamilyId: string;
+  subfamily: {
+    id: string;
+    name: string;
+    familyId: string;
+    family: {
+      id: string;
+      name: string;
+      isGeneral: boolean;
+    };
+  };
 }
 
 interface Product {
@@ -22,6 +52,8 @@ interface Product {
   createdById?: string | null;
   articlesCount: number;
   families?: ProductFamily[];
+  subfamilies?: ProductSubfamily[];
+  varieties?: ProductVariety[];
   createdAt: string;
 }
 
@@ -42,6 +74,7 @@ export default function ProductsPage() {
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [limit] = useState(50);
+  const [view, setView] = useState<'list' | 'grid'>('list');
 
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -49,6 +82,14 @@ export default function ProductsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [deleteError, setDeleteError] = useState('');
+
+  // Cargar vista guardada en localStorage
+  useEffect(() => {
+    const savedView = localStorage.getItem('productsView') as 'list' | 'grid' | null;
+    if (savedView === 'list' || savedView === 'grid') {
+      setView(savedView);
+    }
+  }, []);
 
   // Verificar permisos al cargar la página
   useEffect(() => {
@@ -92,8 +133,10 @@ export default function ProductsPage() {
         params.append('general', generalFilter === 'general' ? 'true' : 'false');
       }
 
-      // Incluir familias en la respuesta
+      // Incluir familias, subfamilias y variedades en la respuesta
       params.append('includeFamilies', 'true');
+      params.append('includeSubfamilies', 'true');
+      params.append('includeVarieties', 'true');
 
       const res = await fetch(`/api/products?${params.toString()}`);
       const data = await res.json();
@@ -183,6 +226,11 @@ export default function ProductsPage() {
     setOffset(0);
   };
 
+  const handleViewChange = (newView: 'list' | 'grid') => {
+    setView(newView);
+    localStorage.setItem('productsView', newView);
+  };
+
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(total / limit);
   const startItem = offset + 1;
@@ -192,7 +240,8 @@ export default function ProductsPage() {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Gestión de Productos</h1>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          <ViewToggle view={view} onViewChange={handleViewChange} />
           <button
             onClick={() => setShowBulkModal(true)}
             className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
@@ -278,96 +327,104 @@ export default function ProductsPage() {
         </div>
       ) : (
         <>
-          {/* Tabla de Productos */}
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Nombre
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Descripción
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Tipo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Familias
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Artículos
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {products.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                      <Link
-                        href={`/app/products/${product.id}`}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        {product.name}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {product.description || (
-                        <span className="text-gray-400">Sin descripción</span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          product.isGeneral
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {product.isGeneral ? 'General' : 'Particular'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {product.families && product.families.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {product.families.map((family) => (
-                            <span
-                              key={family.id}
-                              className="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
-                            >
-                              {family.name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">Sin familias</span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {product.articlesCount}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEditClick(product)}
-                        className="mr-3 text-blue-600 hover:text-blue-900"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(product)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Eliminar
-                      </button>
-                    </td>
+          {view === 'grid' ? (
+            <ProductGrid
+              products={products}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+            />
+          ) : (
+            /* Tabla de Productos */
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Nombre
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Descripción
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Tipo
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Familias
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Artículos
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Acciones
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {products.map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                        <Link
+                          href={`/app/products/${product.id}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {product.name}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {product.description || (
+                          <span className="text-gray-400">Sin descripción</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            product.isGeneral
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {product.isGeneral ? 'General' : 'Particular'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {product.families && product.families.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {product.families.map((family) => (
+                              <span
+                                key={family.id}
+                                className="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
+                              >
+                                {family.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">Sin familias</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {product.articlesCount}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                        <button
+                          onClick={() => handleEditClick(product)}
+                          className="mr-3 text-blue-600 hover:text-blue-900"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(product)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Paginación */}
           {totalPages > 1 && (

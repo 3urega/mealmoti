@@ -1,101 +1,192 @@
-Definición de los conceptos del dominio
+# Definición de los conceptos del dominio
 
+Este documento describe la lógica de negocio real implementada en Mealmoti.
 
-#Producto: Un producto consiste en un concepto genérico que agrupa a un conjunto de alimentos cuyas propiedades comunes son suficientemente significativas como para considerar que forman parte del mismo conjunto, del mismo producto.
+---
 
-Ejemplos, un producto pueden ser:
+## Taxonomía de clasificación de productos (3 niveles jerárquicos)
 
-Tortillas
-Pan
-Anchoas
-Paella marinera
-Helado de vainilla
+Los productos se organizan mediante una estructura de **Familia → Subfamilia → Variedad**. Un producto puede estar asignado a una o varias familias, subfamilias y variedades (relaciones muchos-a-muchos).
 
-Hay que observar que un producto se establece como la cúspide de una pirámide organizativa, es decir: aunque se pueda argumentar que la paella marinera está a su vez formada por otros productos (marisco, arroz, tomate, … ), esto no es así, no hay una relación entre ellos, el producto es el punto más alto desde el que nacen las variantes.
-Así pues, una paella marinera, puede ser vista a la vez como producto, o como receta, en cuyo caso sí que estará conformada por productos.
+### Familia (ProductFamily)
 
-Un producto puede estar en una receta … SI, pero al momento de pasar esa receta a la lista de la compra, deberá especificarse a qué artículos nos estamos refiriendo, ya que solo los artículos pueden estar en la lista de la compra.
+- **Nivel**: 1 (más alto)
+- **Descripción**: Categoría amplia de productos alimentarios (ej: Lácteos, Carnes, Panadería)
+- **Dependencias**: Ninguna. Es el nivel raíz de la taxonomía
+- **Contiene**: Subfamilias
+- **Visibilidad**: `isGeneral` (general = todos los usuarios; particular = solo el creador)
+- **Unicidad**: `[name, isGeneral, createdById]`
 
+### Subfamilia (ProductSubfamily)
 
+- **Nivel**: 2
+- **Descripción**: Subcategoría dentro de una familia (ej: dentro de Lácteos → Leche, Quesos, Yogures)
+- **Dependencias**: Pertenece a una Familia (`familyId`)
+- **Hereda**: `isGeneral` de la familia padre
+- **Contiene**: Variedades
+- **Unicidad**: `[name, familyId]`
 
-#Artículo: Un artículo ya es una variante de un producto suficientemente específica como para poder contestar a estas preguntas: 
+### Variedad (ProductVariety)
 
-¿cuánto puede costar ? 
-¿ Dónde lo compro ? 
-¿ Tiene algún ingrediente al que soy alérgico ?
-¿ De qué marca es ?
+- **Nivel**: 3 (más específico)
+- **Descripción**: Variante concreta dentro de una subfamilia (ej: dentro de Leche → Entera, Desnatada, Semidesnatada)
+- **Dependencias**: Pertenece a una Subfamilia (`subfamilyId`)
+- **Hereda**: `isGeneral` de la subfamilia → familia
+- **Unicidad**: `[name, subfamilyId]`
 
-Si podemos investigar para responder a estas preguntas, seguramente nos hallemos ante un firme candidato a ser un artículo.
+### Diagrama de la taxonomía
 
-Por ejemplo:
+```
+ProductFamily (ej: Lácteos)
+  └── ProductSubfamily (ej: Leche)
+        └── ProductVariety (ej: Entera, Desnatada)
+```
 
-Tortillas de maíz →  Tortillas de maíz hacendado o Tortillas de maíz ( genérico)
-Pan de molde → Pan de molde integral bimbo
-Anchoas →  Anchoas en lata del cantábrico
-Paella marinera → Paella bo de debó
-Helado de vainilla → Helado de vainilla frigo en bote
+---
 
-En realidad una receta podría centrarse en los productos ..  50 gr de harina de trigo, 10 gr de azúcar, …
+## Producto (Product)
 
-O bien avanzar un grado más en su especificación y apuntar a los artículos .. 5 gr de harina de trigo hacendado, 10 gr de azúcar de caña natural , …
+Concepto genérico que agrupa alimentos con propiedades comunes significativas.
 
-Así como también combinar ambas posibilidades, como sería por ejemplo que el azúcar es un producto, ya que no se considera importante que sea de un tipo o de otro, pero la carne tiene que ser de un tipo muy concreto, o de una denominación de orígen determinada.
+**Ejemplos**: Tortillas, Pan, Anchoas, Paella marinera, Helado de vainilla
 
-Podría parecer que la diferencia entre producto y artículo radicaría en que el artículo consiste en especificar la marca comercial del producto, pero no tiene porqué ser así. Si que és cierto que en el caso  agua mineral → agua mineral Bezoya 5L  esta conclusión sería correcta, pero también tendríamos carn de vedella → carn de vedella eco berguedà (safata 1kg) en este caso el artículo puede tener varias marcas y varios sitios distintos donde comprarlo.
+### Características
 
-Un artículo será todo aquello que aparece en nuestra lista de la compra. Un artículo puede tener o no una marca. Aunque por lo general si no especificamos marca es porque no la conocemos. Un artículo debe entenderse como un tipo de producto y una marca.
-Un tipo de producto, en cuanto que se especifica una variedad del producto: agua mineral (5L) y una marca (Bezoya) que es la que nos permitirá establecer dónde se vende y a qué precio.
+- **Clasificación**: Un producto puede estar asignado a varias familias, subfamilias y variedades simultáneamente (many-to-many)
+- **Tags**: Además puede tener ProductTags (etiquetas planas, no jerárquicas)
+- **Relación con artículos**: Un producto tiene muchos artículos; cada artículo pertenece a un único producto
+- **Visibilidad**: `isGeneral` (general = todos; particular = solo el creador)
 
-Si que puede ocurrir que un producto pueda tener el mismo nombre que un artículo, por ejemplo: carne magra de cerdo.  Nuestra lista de la compra puede tener ese artículo en ella, ya que si vamos a una carnicería, nos podrán abastecer de ese artículo y no tendrá ninguna marca.  Sin embargo son dos cosas distintas: la carne magra de cerdo como producto, y la carne magra de cerdo como artículo. Ya que como producto no puede aparecer en nuestra lista de la compra, solo puede hacerlo como artículo, en este caso sin marca (marca “genérico”). Pero podría existir una marca, pongamos: carne magra de cerdo Hacendado ; en ambos casos se trata de artículos igual, uno con marca y otro sin ella. 
+### Relaciones
 
-Podríamos decir que cuando un artículo no tiene marca conocido se asigna por defecto a la marca “genérico”
+| Relación | Tipo | Descripción |
+|----------|------|-------------|
+| articles | 1:N | Artículos que son variantes de este producto |
+| families | N:M | Familias a las que pertenece |
+| subfamilies | N:M | Subfamilias a las que pertenece |
+| varieties | N:M | Variedades a las que pertenece |
+| tags | N:M | Etiquetas asociadas |
+| ingredients | N:M | Ingredientes que componen el producto |
 
-Características de un artículo:
-Están asociadas a un producto, pero un producto puede corresponder a varios artículos
-No tienen precio de compra ( pero pueden tener un precio orientativo)
-Tienen una marca
-Pueden estar asociadas a aquellos comercios donde podemos encontrarlo
+### Nota sobre recetas
 
-Un artículo puede tener dos ámbitos a nivel de usuario:  particular (artículo particular) o general (artículo general).
-Esta distinción cabe realizarla ya que un artículo particular consistirá en un artículo creado por un usuario que solo él puede ver y usar.
-Un artículo general, en cambio, todos los usuarios pueden buscarlo, verlo y usarlo.
+Un producto puede aparecer en una receta como ingrediente. Al pasar la receta a la lista de la compra, debe especificarse qué artículos concretos se van a comprar, ya que **solo los artículos** pueden estar en la lista.
 
+---
 
-#Ingrediente:  Un ingrediente consiste en la unidad más pequeña, más primordial.
+## Artículo (Article)
 
-Los ingredientes se agrupan para formar productos y artículos. Puede haber artículos que compartan producto pero que sin embargo tengan distintos ingredientes. 
+Variante específica de un producto que responde a: ¿cuánto cuesta?, ¿dónde lo compro?, ¿qué ingredientes tiene?, ¿de qué marca es?
 
-Por ejemplo: Un producto podría ser una sopa maravilla deshidratada, y dos artículos serían dos marcas que ofrecen ese mismo producto, pero una lleva zanahoria y la otra no.
+**Ejemplos**:
+- Tortillas de maíz → Tortillas de maíz Hacendado o Tortillas de maíz (genérico)
+- Pan de molde → Pan de molde integral Bimbo
+- Anchoas → Anchoas en lata del Cantábrico
 
-Así pues, los ingredientes podríamos decir que definen al artículo, pero no así al producto, o no necesariamente.
+### Características
 
-Los ingredientes pueden ser elementos químicos o sustancias que aparecen en el envase del artículo: grasas animales saturadas, conservante E-355 …  o bien ingredientes más genéricos, como sémola de arroz, azúcar, carne de cerdo, …
+- **Producto**: Cada artículo pertenece a un único producto
+- **Marca**: Siempre tiene marca; por defecto "genérico"
+- **Variant**: Especificación adicional (ej: "5L", "integral", "500g")
+- **weightInGrams**: Peso del contenido en gramos
+- **suggestedPrice**: Precio orientativo (no es el precio de compra real)
+- **Visibilidad**: `isGeneral` (particular = solo el creador; general = todos)
 
-Cosas como “carne de cerdo” podrían considerarse como producto o también como ingrediente de un artículo. Y de hecho así es, entidades abstractas pueden considerarse con igual certeza como producto o como ingrediente, no así como artículo, ya que un artículo tendría una marca, que  por definición no tiene sentido en un ingrediente; aunque podría pasar que el azúcar es un ingrediente, y el azúcar de marca genérico es el artículo
+### Relaciones
 
+| Relación | Descripción |
+|----------|-------------|
+| product | Producto al que pertenece |
+| items | Apariciones en listas de la compra |
+| stores | Comercios donde se encuentra (ArticleStore, con precio y disponibilidad) |
+| ingredients | Ingredientes del artículo (pueden diferir entre artículos del mismo producto) |
 
+### Regla importante
 
+Un artículo es lo que aparece en la lista de la compra. **Solo los artículos** pueden estar en listas de compra, nunca los productos directamente.
 
-#Item: El item se refiere siempre a un artículo. Un ítem es la abstracción de un artículo una vez este pasa a la lista de la compra. 
+---
 
-Por ejemplo el artículo pan de molde bimbo para pasarlo a la lista de la compra se hace a través de ítems, los cuales representarán a las entidades físicas finales que serán compradas. Podemos especificar qué cantidad de ítems entran en la lista de la compra, cuántos han sido comprados y cuantos no, que precio final han resultado tener …
-A través de un comercio el artículo deviene en ítem, un artículo no tiene precio de compra, pero un item si.
-Características del ítem:
-Está unívocamente relacionado con un artículo
-Está unívocamente relacionado con una lista de la compra.
-Tiene precio de compra
-Se le puede asignar una cantidad a comprar
-Podemos ver si un ítem ha sido comprado o no, o cuantas unidades han sido compradas y cuántas no
+## Ingrediente (Ingredient)
 
+Unidad mínima de composición. Puede ser:
+- **chemical**: Sustancias que aparecen en el envase (E-355, grasas saturadas…)
+- **generic**: Ingredientes genéricos (sémola, azúcar, carne de cerdo…)
+- **product**: Referencia a un producto cuando el ingrediente es un producto completo
 
+### Dónde se usan
 
+- **ProductIngredient**: Los productos pueden tener ingredientes (composición típica)
+- **ArticleIngredient**: Los artículos tienen sus propios ingredientes (pueden diferir entre artículos del mismo producto)
 
+**Ejemplo**: Sopa deshidratada como producto; dos marcas (artículos) pueden tener ingredientes distintos (una lleva zanahoria, otra no).
 
-#Lista de compra: Una lista de compra consiste en un conjunto de ítems que representan cada uno de ellos a un artículo de forma unívoca y que asigna el estado de comprado - no comprado a estos.
+---
 
-La lista de la compra podría definirse como una agrupación de ítems.
+## Item (Item de lista)
 
-Una lista de la compra puede usarse como plantilla para repetir compras periódicas, pero en el momento de la compra esta lista será única. Tendrá claramente una entidad propia, un estado que definirá en qué momento de su ciclo de vida se encuentra, una fecha de estado y de última modificación … Si una lista de la compra llega al estado de “comprada” entonces podremos ver los datos finales de esa lista, como son el coste real final de la compra, los productos (ítems) que finalmente se compraron y los que no.
+Representación de un artículo dentro de una lista de la compra.
 
-Imaginemos que una lista de la compra es “comprada”, una vez finalizada la compra, a la semana siguiente, queremos repetir la misma compra. En ese caso se crea una copia de la lista de la compra, pero los ítems de cada lista serán distintos. En cualquier momento podemos ver un historial de las listas de compra y de los ítems que hemos comprado.
+### Características
 
+- **Relación**: Un item referencia un artículo y una lista (unívoco)
+- **Regla**: Un artículo solo puede aparecer una vez por lista (`@@unique([shoppingListId, articleId])`)
+- **quantity**: Cantidad a comprar
+- **unitId**: Unidad de medida
+- **price**: Precio real de compra (cuando se compra)
+- **purchasedQuantity**: Cantidad realmente comprada
+- **checked**: Estado comprado / no comprado
+- **storeId**: Comercio donde se compró
+- **purchasedAt**: Fecha de compra
+
+### Flujo
+
+Artículo → Item (en lista) → PurchaseItem (cuando se registra la compra)
+
+---
+
+## Lista de compra (ShoppingList)
+
+Conjunto de ítems que representan artículos a comprar, con estado comprado/no comprado.
+
+### Características
+
+- **Estados**: draft, active, completed, archived, periodica, disused
+- **Plantillas**: `isTemplate` permite usar listas como base para compras repetidas
+- **Recetas**: `recipeId` permite crear listas desde una receta
+- **Compartir**: Via ShoppingListShare con permisos (canEdit)
+- **Historial**: Purchase registra cada compra realizada
+
+---
+
+## Comercio (Store)
+
+Lugar donde se compran artículos. Los artículos pueden estar asociados a comercios (ArticleStore) con precio y disponibilidad. Los ítems pueden indicar en qué comercio se compró.
+
+---
+
+## Unidad (Unit)
+
+Unidades de medida (kg, gr, unidades, etc.) usadas en ítems, recetas e ingredientes.
+
+---
+
+## Receta (Recipe)
+
+Conjunto de ingredientes (RecipeIngredient) que pueden referenciar productos o artículos específicos. Al pasar a lista de compra, el usuario elige qué artículos concretos usar (RecipeArticleSelection).
+
+---
+
+## ProductTag
+
+Etiquetas planas para productos (independientes de la taxonomía Familia/Subfamilia/Variedad). Un producto puede tener múltiples tags.
+
+---
+
+## Visibilidad: general vs particular
+
+Varios conceptos comparten la distinción:
+- **general**: Visible y usable por todos los usuarios
+- **particular**: Creado por un usuario, solo él puede verlo y usarlo
+
+Aplica a: Product, Article, ProductFamily, ProductTag, Store
