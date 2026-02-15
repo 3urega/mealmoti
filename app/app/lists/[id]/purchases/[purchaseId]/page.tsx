@@ -305,7 +305,7 @@ export default function PurchaseDetailPage() {
                           <span className="font-medium text-gray-900">{item.article.name}</span>
                           <span className="text-gray-500 ml-2">({item.article.brand})</span>
                           <div className="text-xs text-gray-400 mt-1">
-                            {item.article.product.name}
+                            {item.article.product?.name ?? '-'}
                           </div>
                           {item.notes && (
                             <div className="text-xs text-gray-500 italic mt-1">📝 {item.notes}</div>

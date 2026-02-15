@@ -144,7 +144,7 @@ export default function ListItem({
           <div className="text-sm font-medium text-gray-900">
             {article.name} ({article.brand})
             <span className="ml-2 text-xs text-gray-500">
-              {article.product.name}
+              {article.product?.name ?? '-'}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -257,7 +257,7 @@ export default function ListItem({
             ({article.brand})
           </span>
           <span className="text-xs text-gray-500 whitespace-nowrap">
-            {article.product.name}
+            {article.product?.name ?? '-'}
           </span>
           <span className="text-sm text-gray-600 whitespace-nowrap">
             {quantity} {unit}

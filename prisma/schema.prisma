@@ -107,8 +107,8 @@ model Article {
   id             String   @id @default(cuid())
   name           String
   description    String?
-  productId      String
-  product        Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   brand          String   @default("genérico") // Siempre tiene marca, por defecto "genérico"
   variant        String? // Variedad específica (ej: "5L", "integral")
   weightInGrams  Float? // Peso del producto contenido en gramos (ej: 500 para 500g)

@@ -7,7 +7,7 @@ import { z } from 'zod';
 const updateArticleSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido').optional(),
   description: z.string().optional().nullable(),
-  productId: z.string().optional(),
+  productId: z.string().optional().nullable(),
   brand: z.string().min(1, 'La marca es requerida').optional(),
   variant: z.string().optional(),
   weightInGrams: z.number().positive('El peso debe ser positivo').optional().nullable(),
@@ -249,8 +249,11 @@ export async function PUT(
       }
     }
 
-    // Si se cambia el producto, validar acceso
-    if (validatedData.productId && validatedData.productId !== article.productId) {
+    // Si se cambia el producto (a otro no nulo), validar acceso
+    if (
+      validatedData.productId &&
+      validatedData.productId !== (article.productId ?? '')
+    ) {
       const product = await prisma.product.findUnique({
         where: { id: validatedData.productId },
       });
@@ -280,7 +283,7 @@ export async function PUT(
       updateData.description = validatedData.description?.trim() || null;
     }
     if (validatedData.productId !== undefined) {
-      updateData.productId = validatedData.productId;
+      updateData.productId = validatedData.productId?.trim() || null;
     }
     if (validatedData.brand !== undefined) {
       updateData.brand = validatedData.brand.trim() || 'genérico';

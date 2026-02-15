@@ -22,6 +22,7 @@
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
     "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",
+    "lucide-react": "^0.564.0",
     "mapbox-gl": "^3.17.0",
     "next": "^16.0.7",
     "next-pwa": "^5.6.0",

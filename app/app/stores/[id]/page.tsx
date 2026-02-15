@@ -270,7 +270,7 @@ export default function StoreDetailPage() {
                     <p className="text-xs text-gray-500">{article.variant}</p>
                   )}
                   <p className="mt-1 text-xs text-gray-500">
-                    {article.product.name}
+                    {article.product?.name ?? '-'}
                   </p>
                 </div>
                 {article.available ? (

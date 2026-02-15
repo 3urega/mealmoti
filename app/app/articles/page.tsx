@@ -15,7 +15,7 @@ interface Product {
 interface Article {
   id: string;
   name: string;
-  product: Product;
+  product: Product | null;
   brand: string;
   variant?: string | null;
   suggestedPrice?: number | null;
@@ -23,6 +23,24 @@ interface Article {
   createdById?: string | null;
   storesCount: number;
   createdAt: string;
+  family?: string | null;
+  subfamily?: string | null;
+  variety?: string | null;
+}
+
+interface ProductFamily {
+  id: string;
+  name: string;
+}
+
+interface ProductSubfamily {
+  id: string;
+  name: string;
+}
+
+interface ProductVariety {
+  id: string;
+  name: string;
 }
 
 interface ArticleListResponse {
@@ -47,6 +65,13 @@ export default function ArticlesPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+
+  const [familyFilter, setFamilyFilter] = useState<string>('all');
+  const [subfamilyFilter, setSubfamilyFilter] = useState<string>('all');
+  const [varietyFilter, setVarietyFilter] = useState<string>('all');
+  const [families, setFamilies] = useState<ProductFamily[]>([]);
+  const [subfamilies, setSubfamilies] = useState<ProductSubfamily[]>([]);
+  const [varieties, setVarieties] = useState<ProductVariety[]>([]);
 
   const [showModal, setShowModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -79,8 +104,90 @@ export default function ArticlesPage() {
   }, []);
 
   useEffect(() => {
+    const fetchFamilies = async () => {
+      try {
+        const res = await fetch('/api/product-families?limit=1000');
+        const data = await res.json();
+        if (res.ok) {
+          setFamilies(data.families || []);
+        }
+      } catch (err) {
+        console.error('Error fetching families:', err);
+      }
+    };
+    fetchFamilies();
+  }, []);
+
+  useEffect(() => {
+    if (familyFilter === 'all') {
+      setSubfamilies([]);
+      setSubfamilyFilter('all');
+      setVarieties([]);
+      setVarietyFilter('all');
+    } else {
+      const fetchSubfamilies = async () => {
+        try {
+          const res = await fetch(
+            `/api/product-families/${familyFilter}/subfamilies?limit=1000`
+          );
+          const data = await res.json();
+          if (res.ok) {
+            setSubfamilies(data.subfamilies || []);
+          } else {
+            setSubfamilies([]);
+          }
+        } catch (err) {
+          console.error('Error fetching subfamilies:', err);
+          setSubfamilies([]);
+        } finally {
+          setSubfamilyFilter('all');
+          setVarieties([]);
+          setVarietyFilter('all');
+        }
+      };
+      fetchSubfamilies();
+    }
+  }, [familyFilter]);
+
+  useEffect(() => {
+    if (subfamilyFilter === 'all') {
+      setVarieties([]);
+      setVarietyFilter('all');
+    } else {
+      const fetchVarieties = async () => {
+        try {
+          const res = await fetch(
+            `/api/product-subfamilies/${subfamilyFilter}/varieties?limit=1000`
+          );
+          const data = await res.json();
+          if (res.ok) {
+            setVarieties(data.varieties || []);
+          } else {
+            setVarieties([]);
+          }
+        } catch (err) {
+          console.error('Error fetching varieties:', err);
+          setVarieties([]);
+        } finally {
+          setVarietyFilter('all');
+        }
+      };
+      fetchVarieties();
+    }
+  }, [subfamilyFilter]);
+
+  useEffect(() => {
     fetchArticles();
-  }, [search, generalFilter, productFilter, brandFilter, offset]);
+  }, [
+    search,
+    generalFilter,
+    productFilter,
+    brandFilter,
+    familyFilter,
+    subfamilyFilter,
+    varietyFilter,
+    offset,
+  ]);
 
   const fetchProducts = async () => {
     setLoadingProducts(true);
@@ -122,6 +229,16 @@ export default function ArticlesPage() {
         params.append('brand', brandFilter.trim());
       }
 
+      if (familyFilter !== 'all') {
+        params.append('familyId', familyFilter);
+      }
+      if (subfamilyFilter !== 'all') {
+        params.append('subfamilyId', subfamilyFilter);
+      }
+      if (varietyFilter !== 'all') {
+        params.append('varietyId', varietyFilter);
+      }
+
       const res = await fetch(`/api/articles?${params.toString()}`);
       const data = await res.json();
 
@@ -160,6 +277,27 @@ export default function ArticlesPage() {
 
   const handleBrandFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBrandFilter(e.target.value);
+    setOffset(0);
+  };
+
+  const handleFamilyFilterChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setFamilyFilter(e.target.value);
+    setOffset(0);
+  };
+
+  const handleSubfamilyFilterChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setSubfamilyFilter(e.target.value);
+    setOffset(0);
+  };
+
+  const handleVarietyFilterChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setVarietyFilter(e.target.value);
     setOffset(0);
   };
 
@@ -213,6 +351,11 @@ export default function ArticlesPage() {
     setGeneralFilter('all');
     setProductFilter('all');
     setBrandFilter('');
+    setFamilyFilter('all');
+    setSubfamilyFilter('all');
+    setVarietyFilter('all');
+    setSubfamilies([]);
+    setVarieties([]);
     setOffset(0);
   };
 
@@ -313,6 +456,73 @@ export default function ArticlesPage() {
             />
           </div>
         </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label
+              htmlFor="familyFilter"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Filtrar por familia
+            </label>
+            <select
+              id="familyFilter"
+              value={familyFilter}
+              onChange={handleFamilyFilterChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            >
+              <option value="all">Todas</option>
+              {families.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="subfamilyFilter"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Filtrar por subfamilia
+            </label>
+            <select
+              id="subfamilyFilter"
+              value={subfamilyFilter}
+              onChange={handleSubfamilyFilterChange}
+              disabled={familyFilter === 'all'}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              <option value="all">Todas</option>
+              {subfamilies.map((sf) => (
+                <option key={sf.id} value={sf.id}>
+                  {sf.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="varietyFilter"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Filtrar por variedad
+            </label>
+            <select
+              id="varietyFilter"
+              value={varietyFilter}
+              onChange={handleVarietyFilterChange}
+              disabled={subfamilyFilter === 'all'}
+              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              <option value="all">Todas</option>
+              {varieties.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="mt-4">
           <button
             onClick={handleClearFilters}
@@ -338,7 +548,13 @@ export default function ArticlesPage() {
       ) : articles.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <p className="text-gray-600">
-            {search || generalFilter !== 'all' || productFilter !== 'all' || brandFilter
+            {search ||
+            generalFilter !== 'all' ||
+            productFilter !== 'all' ||
+            brandFilter ||
+            familyFilter !== 'all' ||
+            subfamilyFilter !== 'all' ||
+            varietyFilter !== 'all'
               ? 'No se encontraron artículos con los filtros aplicados.'
               : 'No hay artículos todavía. Crea tu primer artículo para comenzar.'}
           </p>
@@ -355,6 +571,15 @@ export default function ArticlesPage() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Producto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Familia
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Subfamilia
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Variedad
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Marca
@@ -388,7 +613,24 @@ export default function ArticlesPage() {
                       </button>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {article.product.name}
+                      {article.product?.name ?? (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {article.family || (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {article.subfamily || (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {article.variety || (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       {article.brand}

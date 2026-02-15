@@ -94,9 +94,6 @@ export default function ArticleModal({
     if (!name.trim()) {
       errors.name = 'El nombre es requerido';
     }
-    if (!productId) {
-      errors.productId = 'El producto es requerido';
-    }
     if (!brand.trim()) {
       errors.brand = 'La marca es requerida';
     }
@@ -121,7 +118,7 @@ export default function ArticleModal({
     try {
       const body: any = {
         name: name.trim(),
-        productId,
+        productId: productId || undefined,
         brand: brand.trim() || 'genérico',
         variant: variant.trim() || undefined,
         suggestedPrice: suggestedPrice
@@ -237,7 +234,7 @@ export default function ArticleModal({
               htmlFor="productId"
               className="block text-sm font-medium text-gray-700"
             >
-              Producto *
+              Producto (opcional)
             </label>
             <SearchableProductSelect
               value={productId}

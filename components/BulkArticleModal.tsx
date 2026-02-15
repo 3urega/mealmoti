@@ -80,9 +80,6 @@ export default function BulkArticleModal({
     if (!article.name.trim()) {
       errors.name = 'El nombre es requerido';
     }
-    if (!article.productId) {
-      errors.productId = 'El producto es requerido';
-    }
     if (!article.brand.trim()) {
       errors.brand = 'La marca es requerida';
     }
@@ -163,7 +160,7 @@ export default function BulkArticleModal({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: article.name,
-              productId: article.productId,
+              productId: article.productId || undefined,
               brand: article.brand,
               variant: article.variant || undefined,
               suggestedPrice: article.suggestedPrice
@@ -488,7 +485,10 @@ export default function BulkArticleModal({
                         )}
                       </div>
                       <div className="mt-1 text-sm text-gray-600">
-                        <span className="font-medium">Producto:</span> {article.productName}
+                        <span className="font-medium">Producto:</span>{' '}
+                        {article.productName || (
+                          <span className="text-gray-400">Sin producto</span>
+                        )}
                       </div>
                       <div className="mt-1 text-sm text-gray-600">
                         <span className="font-medium">Marca:</span> {article.brand}

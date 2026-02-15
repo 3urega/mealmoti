@@ -7,7 +7,7 @@ import { z } from 'zod';
 const createArticleSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().optional().nullable(),
-  productId: z.string().min(1, 'El producto es requerido'),
+  productId: z.string().optional().nullable(),
   brand: z.string().min(1, 'La marca es requerida').default('genérico'),
   variant: z.string().optional(),
   weightInGrams: z.number().positive('El peso debe ser positivo').optional().nullable(),
@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
     const general = searchParams.get('general');
     const search = searchParams.get('search');
     const brand = searchParams.get('brand');
+    const familyId = searchParams.get('familyId');
+    const subfamilyId = searchParams.get('subfamilyId');
+    const varietyId = searchParams.get('varietyId');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -42,6 +45,24 @@ export async function GET(request: NextRequest) {
     // Filtro por producto
     if (productId) {
       where.productId = productId;
+    }
+
+    // Filtro por familia/subfamilia/variedad (condición más específica gana)
+    if (varietyId) {
+      where.product = {
+        ...where.product,
+        varieties: { some: { varietyId } },
+      };
+    } else if (subfamilyId) {
+      where.product = {
+        ...where.product,
+        subfamilies: { some: { subfamilyId } },
+      };
+    } else if (familyId) {
+      where.product = {
+        ...where.product,
+        families: { some: { familyId } },
+      };
     }
 
     // Filtro por general
@@ -87,6 +108,15 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
+            families: {
+              include: { family: { select: { id: true, name: true } } },
+            },
+            subfamilies: {
+              include: { subfamily: { select: { id: true, name: true } } },
+            },
+            varieties: {
+              include: { variety: { select: { id: true, name: true } } },
+            },
           },
         },
         _count: {
@@ -103,18 +133,38 @@ export async function GET(request: NextRequest) {
     });
 
     // Formatear respuesta
-    const formattedArticles = articles.map((article: any) => ({
-      id: article.id,
-      name: article.name,
-      product: article.product,
-      brand: article.brand,
-      variant: article.variant,
-      suggestedPrice: article.suggestedPrice,
-      isGeneral: article.isGeneral,
-      createdById: article.createdById,
-      storesCount: article._count.stores,
-      createdAt: article.createdAt,
-    }));
+    const formattedArticles = articles.map((article: any) => {
+      const familyNames = article.product?.families
+        ?.map((pf: { family: { name: string } }) => pf.family.name)
+        .filter(Boolean)
+        .join(', ');
+      const subfamilyNames = article.product?.subfamilies
+        ?.map((ps: { subfamily: { name: string } }) => ps.subfamily.name)
+        .filter(Boolean)
+        .join(', ');
+      const varietyNames = article.product?.varieties
+        ?.map((pv: { variety: { name: string } }) => pv.variety.name)
+        .filter(Boolean)
+        .join(', ');
+
+      return {
+        id: article.id,
+        name: article.name,
+        product: article.product
+          ? { id: article.product.id, name: article.product.name }
+          : null,
+        brand: article.brand,
+        variant: article.variant,
+        suggestedPrice: article.suggestedPrice,
+        isGeneral: article.isGeneral,
+        createdById: article.createdById,
+        storesCount: article._count.stores,
+        createdAt: article.createdAt,
+        family: familyNames || null,
+        subfamily: subfamilyNames || null,
+        variety: varietyNames || null,
+      };
+    });
 
     return NextResponse.json(
       {
@@ -155,24 +205,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createArticleSchema.parse(body);
 
-    // Verificar que el producto existe y el usuario tiene acceso
-    const product = await prisma.product.findUnique({
-      where: { id: validatedData.productId },
-    });
+    // Verificar producto solo si se proporciona
+    if (validatedData.productId) {
+      const product = await prisma.product.findUnique({
+        where: { id: validatedData.productId },
+      });
 
-    if (!product) {
-      return NextResponse.json(
-        { error: 'Producto no encontrado' },
-        { status: 400 }
-      );
-    }
+      if (!product) {
+        return NextResponse.json(
+          { error: 'Producto no encontrado' },
+          { status: 400 }
+        );
+      }
 
-    // Verificar acceso al producto (general o del usuario)
-    if (!product.isGeneral && product.createdById !== user.id) {
-      return NextResponse.json(
-        { error: 'No tienes acceso a este producto' },
-        { status: 403 }
-      );
+      if (!product.isGeneral && product.createdById !== user.id) {
+        return NextResponse.json(
+          { error: 'No tienes acceso a este producto' },
+          { status: 403 }
+        );
+      }
     }
 
     // Verificar si el usuario puede crear artículos públicos
@@ -211,7 +262,7 @@ export async function POST(request: NextRequest) {
     const articleData: any = {
       name: validatedData.name.trim(),
       description: validatedData.description?.trim() || null,
-      productId: validatedData.productId,
+      productId: validatedData.productId?.trim() || null,
       brand: validatedData.brand.trim() || 'genérico',
       variant: validatedData.variant?.trim() || null,
       suggestedPrice: validatedData.suggestedPrice || null,

@@ -225,7 +225,11 @@ export default function ArticleDetailPage() {
           <dl className="space-y-3">
             <div>
               <dt className="text-sm font-medium text-gray-500">Producto</dt>
-              <dd className="mt-1 text-sm text-gray-900">{article.product.name}</dd>
+              <dd className="mt-1 text-sm text-gray-900">
+                {article.product?.name ?? (
+                  <span className="text-gray-400">Sin producto</span>
+                )}
+              </dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-gray-500">Marca</dt>
